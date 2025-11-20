@@ -1,31 +1,28 @@
-// En /api/index.js
+// api/index.js (Versión de Diagnóstico)
 
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const conectarDB = require('../config/db');
-const router = require('../routes/router'); // Importamos el router centralizado
-
 const app = express();
 
-// Conectar a la Base de Datos
-conectarDB();
-
-// Middlewares
-app.use(cors());
+// Middleware para parsear JSON, siempre es bueno tenerlo
 app.use(express.json());
 
-// Servir archivos estáticos (¡OJO! La ruta debe ajustarse para Vercel)
-// Vercel no maneja bien las rutas relativas como __dirname en un entorno serverless.
-// Por ahora, para depurar, podemos comentarlas o buscar una solución más avanzada después.
-// app.use('/images', express.static(path.join(__dirname, '../public/images')));
-// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Creamos una ruta para /api/usuarios DIRECTAMENTE aquí
+app.get('/api/usuarios', (req, res) => {
+  console.log("¡La ruta /api/usuarios fue alcanzada!");
+  res.status(200).json([
+    { id: 1, nombre: "Usuario de prueba" }
+  ]);
+});
 
-// El router principal maneja TODAS las rutas.
-// Express montará este router en la raíz ('/').
-// Vercel se encargará de que solo se active para peticiones a '/api'.
-app.use(router);
+// Un "catch-all" para cualquier otra ruta que llegue a la API
+// Esto nos ayudará a ver si la petición al menos llega al servidor
+app.use('/api/(.*)', (req, res) => {
+  console.log(`Ruta no encontrada: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    error: `La ruta interna '${req.path}' no fue encontrada dentro de la aplicación Express.`,
+    originalUrl: req.originalUrl
+  });
+});
 
-// Exportar la aplicación para que Vercel la sirva.
-// ¡NO USAR serverless(app) NI app.listen()!
+// Exportamos la app para Vercel
 module.exports = app;
