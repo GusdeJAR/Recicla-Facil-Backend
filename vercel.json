@@ -2,18 +2,10 @@
   "version": 2,
   "builds": [
     {
-      "src": "/api/index.js",
+      "src": "package.json",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": [
-          "../config/**",
-          "../controllers/**",
-          "../assets/**",
-          "../models/**",
-          "../routes/**",
-          "../services/**",
-          "../uploads/**"
-        ]
+        "zeroConfig": true
       }
     }
   ],
