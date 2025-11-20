@@ -3,6 +3,9 @@ const router=express.Router();
 const controlador=require('../controllers/controlador');
 const upload = require('../config/multer.config');
 
+router.get('/test', (req, res) => {
+  res.status(200).json({ message: 'API en línea' });
+});
 // =========================================================================
 // RUTAS DE USUARIOS
 // =========================================================================
