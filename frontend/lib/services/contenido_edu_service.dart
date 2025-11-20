@@ -53,7 +53,7 @@ class ContenidoEduService {
     int limit = 10,
     int page = 1,
   }) async {
-    final uri = Uri.parse('$apiBaseUrl/contenido-educativo/');
+    final uri = Uri.parse('$apiBaseUrl/contenido-educativo');
     debugPrint('ContenidoEduService - Obteniendo contenido en: $uri');
 
     try {
