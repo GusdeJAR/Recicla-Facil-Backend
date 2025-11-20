@@ -1,5 +1,5 @@
 {
   "functions": {
-    "api/index.js": { "runtime": "nodejs25.0.0" }
+    "api/index.js": { "runtime": "nodejs25.x" }
   }
 }
