@@ -22,7 +22,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/', (req, res) => {
   res.send('¡Servidor Node.js funcionando correctamente en Vercel!');
 });
-
+app.get('/api/test', (req, res) => {
+  res.status(200).json({ message: '¡El backend está funcionando!' });
+});
 // Rutas API
 app.use('/api', router);
 
