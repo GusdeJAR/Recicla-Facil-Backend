@@ -2,14 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node"
+      "src": "/api/index.js",   // Mantenemos esto para que Vercel sepa que es el punto de entrada de la API.
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["../config/**"] // ¡AÑADE ESTO! Es crucial para copiar tu carpeta 'config'.
+      }
     }
   ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "api/index.js"
+      "destination": "/api/index.js"
     }
   ]
 }
