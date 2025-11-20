@@ -2,7 +2,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const router = require('../routes/router');
+const router = require('./routes/router');
 
 // NO conectar a la DB por ahora, para aislar el problema
 // const conectarDB = require('../config/db');
