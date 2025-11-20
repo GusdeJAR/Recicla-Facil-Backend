@@ -28,7 +28,7 @@ class _DetalleContenidoDialogState extends State<DetalleContenidoDialog> {
       if (urlOPath.startsWith('http')) {
         imagenFinalUrl = urlOPath;
       } else {
-        imagenFinalUrl = ContenidoEduService.serverBaseUrl +'/backend'+ urlOPath;
+        imagenFinalUrl = ContenidoEduService.serverBaseUrl + urlOPath;
       }
     }
     // No usamos setState aquí porque initState se ejecuta antes del primer build.

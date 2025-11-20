@@ -102964,7 +102964,7 @@ G(a){var s,r=this,q=null,p={},o=r.c
 if(o==null||o.length===0)return r.PL("Sin imagen")
 p.a=null
 if(B.c.bS(o,"http"))p.a=o
-else o=p.a=A.ob()+"/backend"+o
+else o=p.a=A.ob()+o
 A.bb().$1("[ImagenRedWidget] Mostrando imagen desde: "+o)
 s=r.r
 if(s==null)s=B.am
