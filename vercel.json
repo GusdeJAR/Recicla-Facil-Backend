@@ -1,31 +1,25 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "backend/index.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "frontend/build/web/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "backend/uploads/**",
-      "use": "@vercel/static"
-    }
+    { "src": "backend/index.js", "use": "@vercel/node" },
+    { "src": "backend/uploads/**", "use": "@vercel/static" }
   ],
-  "rewrites": [
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/index.js" },
+    { "src": "/uploads/(.*)", "dest": "backend/uploads/$1" },
+
     {
-      "source": "/api(/.*)?",
-      "destination": "backend/index.js"
+      "src": "/(main\\.dart\\.js|flutter\\.js|assets/.*|icons/.*|favicon\\.png|manifest\\.json)",
+      "dest": "frontend/build/web/$1",
+      "headers": { "Cache-Control": "s-maxage=31536000, immutable" }
+    },
+
+    {
+      "handle": "filesystem"
     },
     {
-      "source": "/uploads/(.*)",
-      "destination": "backend/uploads/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "frontend/build/web/index.html"
+      "src": "/(.*)",
+      "dest": "frontend/build/web/index.html"
     }
   ]
 }
