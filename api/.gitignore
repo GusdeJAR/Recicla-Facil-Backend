@@ -1,0 +1,81 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+gitignore
+# ==================================
+# ARCHIVO: .gitignore
+# ==================================
+
+# 1. Dependencias de Node.js (ESENCIAL)
+# Esta carpeta puede pesar cientos de megabytes y se regenera fácilmente
+# con el comando `npm install`. NUNCA debe subirse al repositorio.
+node_modules
+
+# 2. Archivo de Variables de Entorno (¡CRÍTICO POR SEGURIDAD!)
+# Contiene tus secretos: cadenas de conexión, contraseñas, claves de API, etc.
+# Si subes este archivo a un repositorio público, tus credenciales quedarán expuestas.
+.env
+
+# 3. Archivos de registro (Logs)
+# Archivos de log generados por la aplicación o por npm.
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 4. Archivos del sistema operativo
+# Archivos autogenerados por macOS, Windows o Linux.
+.DS_Store
+Thumbs.db
+
+# 5. Archivos del editor de código (Opcional, pero recomendado)
+# Carpeta de configuración específica de VS Code.
+.vscode/
+
+# 6. Archivos de compilación (si usas TypeScript o un bundler)
+# Aunque no lo estamos usando ahora, es bueno tenerlo para el futuro.
+/dist
+/build
+mek-bqco-rwb
