@@ -1,32 +1,31 @@
+// En /api/index.js
+
 const express = require('express');
 const cors = require('cors');
-const path = require('path'); 
-const conectarDB = require('../config/db'); //Aquí
-const router = require('../routes/router');
-const serverless = require("serverless-http");
+const path = require('path');
+const conectarDB = require('../config/db');
+const router = require('../routes/router'); // Importamos el router centralizado
 
 const app = express();
 
-// Conectar DB
+// Conectar a la Base de Datos
 conectarDB();
 
 // Middlewares
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-// Archivos estáticos
-app.use('/images', express.static(path.join(__dirname, '../public/images')));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Servir archivos estáticos (¡OJO! La ruta debe ajustarse para Vercel)
+// Vercel no maneja bien las rutas relativas como __dirname en un entorno serverless.
+// Por ahora, para depurar, podemos comentarlas o buscar una solución más avanzada después.
+// app.use('/images', express.static(path.join(__dirname, '../public/images')));
+// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Ruta principal
-app.get('/', (req, res) => {
-  res.send('¡Servidor Node.js funcionando correctamente en Vercel!');
-});
-app.get('/api/test', (req, res) => {
-  res.status(200).json({ message: '¡El backend está funcionando!' });
-});
-// Rutas API
-app.use('/api', router);
+// El router principal maneja TODAS las rutas.
+// Express montará este router en la raíz ('/').
+// Vercel se encargará de que solo se active para peticiones a '/api'.
+app.use(router);
 
-// Exportar modo serverless
-module.exports = serverless(app);
+// Exportar la aplicación para que Vercel la sirva.
+// ¡NO USAR serverless(app) NI app.listen()!
+module.exports = app;
