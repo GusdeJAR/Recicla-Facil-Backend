@@ -4,13 +4,14 @@ const controlador=require('../controllers/controlador');
 const upload = require('../config/multer.config');
 
 router.get('/test', (req, res) => {
-  res.status(200).json({ message: 'API en línea' });
+  console.log(">>> ÉXITO: La ruta GET /test ha sido alcanzada en router.js.");
+  res.status(200).json({ message: 'Ruta /test alcanzada con éxito.' });
 });
 // =========================================================================
 // RUTAS DE USUARIOS
 // =========================================================================
+
 router.post('/usuarios', controlador.crearUsuario);
-router.get('/usuarios', controlador.obtenerUsuarios);
 router.get('/usuarios/:email', controlador.obtenerUsuarioPorEmail);
 router.post('/usuarios/login', controlador.loginUsuario);
 router.put('/usuarios/:email', controlador.actualizarUsuario);
