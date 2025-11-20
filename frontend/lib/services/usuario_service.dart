@@ -71,7 +71,7 @@ class UsuarioService {
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('$apiBaseUrl/usuarios');
+    final url = Uri.parse('$apiBaseUrl/api/usuarios');
     debugPrint('Haciendo POST a: $url');
 
     try {
@@ -100,7 +100,7 @@ class UsuarioService {
   // 3. OBTENER todos los usuarios
   // ===================================================================
   Future<List<Map<String, dynamic>>> obtenerUsuarios() async {
-    final url = Uri.parse('$apiBaseUrl/usuarios');
+    final url = Uri.parse('$apiBaseUrl/api/usuarios');
     debugPrint('Haciendo GET a: $url');
 
     try {
@@ -138,7 +138,7 @@ class UsuarioService {
     String? password,
     bool? admin,
   }) async {
-    final url = Uri.parse('$apiBaseUrl/usuarios/$email');
+    final url = Uri.parse('$apiBaseUrl/api/usuarios/$email');
     final Map<String, dynamic> body = {};
     if (nombre != null) body['nombre'] = nombre;
     if (password != null) body['password'] = password;
@@ -173,7 +173,7 @@ class UsuarioService {
   // ===================================================================
   Future<bool> eliminarUsuario(String email) async {
     try {
-      final url = Uri.parse('$apiBaseUrl/usuarios/$email');
+      final url = Uri.parse('$apiBaseUrl/api/usuarios/$email');
       final response = await http.delete(url);
       if (response.statusCode == 200) {
         debugPrint('Usuario eliminado exitosamente.');

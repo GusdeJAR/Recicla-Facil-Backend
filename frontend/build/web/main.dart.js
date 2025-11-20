@@ -99767,7 +99767,7 @@ return A.E($async$D7,r)},
 BN(a,b,c){return this.ath(a,b,c)},
 ath(a,b,c){var s=0,r=A.F(t.P),q,p=2,o=[],n,m,l,k,j,i,h,g
 var $async$BN=A.B(function(d,e){if(d===1){o.push(e)
-s=p}while(true)switch(s){case 0:h=A.ca(A.Vq()+"/usuarios")
+s=p}while(true)switch(s){case 0:h=A.ca(A.Vq()+"/api/usuarios")
 A.bb().$1("Haciendo POST a: "+A.k(h))
 p=4
 k=t.N
@@ -99799,7 +99799,7 @@ case 2:return A.C(o.at(-1),r)}})
 return A.E($async$BN,r)},
 Do(){var s=0,r=A.F(t.b5),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c
 var $async$Do=A.B(function(a,b){if(a===1){o.push(b)
-s=p}while(true)switch(s){case 0:d=A.ca(A.Vq()+"/usuarios")
+s=p}while(true)switch(s){case 0:d=A.ca(A.Vq()+"/api/usuarios")
 A.bb().$1("Haciendo GET a: "+A.k(d))
 p=4
 i=t.N
@@ -99835,7 +99835,7 @@ return A.E($async$Do,r)},
 B7(a,b,c,d){return this.aqD(a,b,c,d)},
 aqD(a,b,c,d){var s=0,r=A.F(t.y),q,p=2,o=[],n,m,l,k,j,i,h
 var $async$B7=A.B(function(e,f){if(e===1){o.push(f)
-s=p}while(true)switch(s){case 0:k=A.ca(A.Vq()+"/usuarios/"+b)
+s=p}while(true)switch(s){case 0:k=A.ca(A.Vq()+"/api/usuarios/"+b)
 j=t.N
 i=A.w(j,t.z)
 J.cY(i,"nombre",c)
@@ -99878,7 +99878,7 @@ Ce(a){return this.au4(a)},
 au4(a){var s=0,r=A.F(t.y),q,p=2,o=[],n,m,l,k,j,i
 var $async$Ce=A.B(function(b,c){if(b===1){o.push(c)
 s=p}while(true)switch(s){case 0:p=4
-n=A.ca(A.Vq()+"/usuarios/"+a)
+n=A.ca(A.Vq()+"/api/usuarios/"+a)
 s=7
 return A.G(A.a5L(n,null),$async$Ce)
 case 7:m=c
