@@ -118,40 +118,62 @@ exports.cambiarPassword = async (req, res) => {
 };
 
 exports.loginUsuario = async (req, res) => {
-    // Lógica para el inicio de sesión de un usuario
-    try{
+     // 1. Log para saber que la función se inició y qué datos llegaron.
+    console.log('Iniciando loginUsuario...');
+    console.log('Request body:', req.body);
+
+    try {
         const { nombre, password } = req.body;
 
-        const usuario = await modelos.Usuario.findOne( { nombre: nombre });
-        if(!usuario){
-        
-            return res.status(401).json({ mensaje: 'Usuario incorrecto' });
-        } 
-        
-        // 4. Si las contraseñas NO coinciden, envía un 401
-        if (password != usuario.password) {
-            return res.status(401).json({ mensaje: 'Contraseña incorrecta' });
+        // Validar que los datos de entrada no estén vacíos
+        if (!nombre || !password) {
+            console.log('Error: Nombre o password faltantes en el body.');
+            return res.status(400).json({ mensaje: 'Nombre y contraseña son requeridos' });
         }
 
-        // 5. Si TODO es correcto, envía un 200 (OK)
+        // 2. Log para saber qué estamos buscando.
+        console.log(`Buscando usuario con nombre: ${nombre}`);
         
+        // CORRECCIÓN: La sintaxis de búsqueda para Mongoose.
+        const usuario = await modelos.Usuario.findOne({ nombre: nombre }).exec();
+
+        if (!usuario) {
+            // 3. Log para saber si el usuario no fue encontrado.
+            console.log('Usuario no encontrado en la base de datos.');
+            return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
+        }
+
+        console.log('Usuario encontrado. Verificando contraseña...');
+
+        // NOTA: Estás comparando contraseñas en texto plano. Esto es muy inseguro.
+        // En el futuro, deberías usar una librería como 'bcrypt' para esto.
+        // const esValida = await bcrypt.compare(password, usuario.password);
+        if (password !== usuario.password) {
+            console.log('Contraseña incorrecta.');
+            return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
+        }
+
+        console.log('Login exitoso. Enviando respuesta 200.');
+        
+        // Crear el objeto para el cliente sin enviar información sensible si la hubiera
         const usuarioParaCliente = {
+            _id: usuario._id, // Es bueno enviar el ID
             nombre: usuario.nombre,
-            password: usuario.password,
             email: usuario.email,
             admin: usuario.admin
         };
         
-        res.status(200).json({ 
+        // Si todo es correcto, envía la respuesta de éxito
+        return res.status(200).json({ 
             mensaje: 'Inicio de sesión exitoso', 
             usuario: usuarioParaCliente 
         });
 
     } catch (error) {
-        console.error("Error en loginUsuario:", error); // Es bueno loggear el error real
-        res.status(500).json({ mensaje: 'Error interno al iniciar sesión' });
+        // 4. Log para capturar cualquier error inesperado.
+        console.error("Error crítico en loginUsuario:", error);
+        return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
-
 }
 exports.actualizarUsuario = async (req, res) => {
 
