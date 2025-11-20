@@ -1,5 +1,15 @@
 {
   "version": 2,
+  "builds": [
+    {
+      "src": "/backend/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "/frontend/build/web/**",
+      "use": "@vercel/static"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",
