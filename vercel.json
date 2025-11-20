@@ -1,9 +1,25 @@
     {
       "version": 2,
-      "rewrites": [
-        { "source": "/api/(.*)", "destination": "/backend/index.js" },
-        { "source": "/uploads/(.*)", "destination": "/backend/uploads/$1" },
-        { "source": "/(.*)", "destination": "/frontend/build/web/index.html" }
+      "builds": [
+        { "src": "backend/index.js", "use": "@vercel/node" }
+      ],
+      "routes": [
+        {
+          "src": "/api/(.*)",
+          "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+          "dest": "backend/index.js"
+        },
+        {
+          "src": "/uploads/(.*)",
+          "dest": "backend/uploads/$1"
+        },
+        {
+          "handle": "filesystem"
+        },
+        {
+          "src": "/(.*)",
+          "dest": "frontend/build/web/index.html"
+        }
       ]
     }
     
