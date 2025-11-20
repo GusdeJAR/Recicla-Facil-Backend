@@ -62,29 +62,30 @@ class GeocodingService {
   // ===================================================================
   // DETECTAR IP AUTOMÁTICAMENTE
   // ===================================================================
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
-    // ASIGNACIÓN PARA WEB:
+  // --- URL de producción ---
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
+
+  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
+  static String get apiBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
+    if (kReleaseMode) {
+      // Usamos la URL absoluta de tu despliegue en Vercel.
+      return _urlProduccion;
+    }
+
+    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
     if (kIsWeb) {
-      return 'http://localhost:3000/api';
+      // Desarrollo en web: apunta a localhost.
+      return 'http://localhost:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-    try {
-      if (Platform.isAndroid) {
-        // En el emulador de Android, se "asigna" la IP especial del alias.
-        return 'http://10.0.2.2:3000/api';
-      }
-    } catch (e) {
-      // Fallback por si 'Platform' no está disponible.
-      return 'http://localhost:3000/api';
+    if (Platform.isAndroid) {
+      // Emulador de Android: apunta a la IP especial del emulador.
+      return 'http://10.0.2.2:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
+    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
+    return 'http://$_ipDesarrolloLocal:3000';
   }
   // Cache local para reverse geocoding: key = hash(lat,lon), value = {result, timestamp}
   final Map<String, Map<String, dynamic>> _reverseCache = {};
@@ -107,7 +108,7 @@ class GeocodingService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiRoot/geocodificar-preview'),
+        Uri.parse('$apiBaseUrl/api/geocodificar-preview'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'calle': calle.trim(),
@@ -159,7 +160,7 @@ class GeocodingService {
     try {
       print('GeocodingService: Llamando a reverse-geocode para Lat: $latitud, Lon: $longitud');
       final future = http.post(
-        Uri.parse('$_apiRoot/reverse-geocode'),
+        Uri.parse('$apiBaseUrl/api/reverse-geocode'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'latitud': latitud,

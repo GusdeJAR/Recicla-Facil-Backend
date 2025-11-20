@@ -9,36 +9,36 @@ class PuntosReciclajeService {
   // ===================================================================
   // DETECTAR IP AUTOMÁTICAMENTE
   // ===================================================================
-  static const String _apiProduccion = '/api';
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
+  // --- URLs de desarrollo ---
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
+
+  // --- URL de producción ---
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
+
+  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
+  static String get apiBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
     if (kReleaseMode) {
-      return _apiProduccion;
+      // Usamos la URL absoluta de tu despliegue en Vercel.
+      return _urlProduccion;
     }
 
-    // ASIGNACIÓN PARA WEB:
+    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
     if (kIsWeb) {
-      return 'http://localhost:3000/api';
+      // Desarrollo en web: apunta a localhost.
+      return 'http://localhost:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-
     if (Platform.isAndroid) {
-      // En el emulador de Android, se "asigna" la IP especial del alias.
-      return 'http://10.0.2.2:3000/api';
+      // Emulador de Android: apunta a la IP especial del emulador.
+      return 'http://10.0.2.2:3000';
     }
-
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
+    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
+    return 'http://$_ipDesarrolloLocal:3000';
   }
 
-
   static Future<List<dynamic>> obtenerPuntosReciclajePorMaterial(String material) async {
-    final url = Uri.parse('$_apiRoot/puntos-reciclaje/material/'+material);
+    final url = Uri.parse('$apiBaseUrl/api/puntos-reciclaje/material/'+material);
     debugPrint('Puntos_reciclaje_service - Obteniendo datos en: $url');
 
     try {
@@ -64,7 +64,7 @@ class PuntosReciclajeService {
   }
 
   static Future<List<dynamic>> obtenerPuntosReciclajeEstado(String estado) async {
-    final url = Uri.parse('$_apiRoot/puntos-reciclaje/estado/'+estado);
+    final url = Uri.parse('$apiBaseUrl/api/puntos-reciclaje/estado/'+estado);
     debugPrint('Puntos_reciclaje_service - Obteniendo datos en: $url');
 
     try {
@@ -90,7 +90,7 @@ class PuntosReciclajeService {
   }
 
   static Future<Map<String, dynamic>> aceptarPunto(String puntoId) async {
-    final url = Uri.parse('$_apiRoot/puntos-reciclaje/estado/$puntoId');
+    final url = Uri.parse('$apiBaseUrl/api/puntos-reciclaje/estado/$puntoId');
     debugPrint('Puntos_reciclaje_service - Aceptando punto en: $url');
     try {
       final response = await http.put(
@@ -122,7 +122,7 @@ class PuntosReciclajeService {
     String? horario,
     String? aceptado
   }) async {
-    final url = Uri.parse('$_apiRoot/puntos-reciclaje/$puntoId');
+    final url = Uri.parse('$apiBaseUrl/api/puntos-reciclaje/$puntoId');
     final Map<String, dynamic> body = {
 
     };
@@ -162,7 +162,7 @@ class PuntosReciclajeService {
   }
 
   static Future<bool> eliminarPuntoReciclaje(String puntoId) async {
-    final url = Uri.parse('$_apiRoot/puntos-reciclaje/$puntoId');
+    final url = Uri.parse('$apiBaseUrl/api/puntos-reciclaje/$puntoId');
     debugPrint('Puntos_reciclaje_service - Eliminando punto en: $url');
 
     try {

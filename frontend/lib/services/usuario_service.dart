@@ -9,31 +9,30 @@ class UsuarioService {
   // ===================================================================
   // DETECTAR IP AUTOMÁTICAMENTE
   // ===================================================================
-  static const String _apiProduccion = '/api';
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
+  // --- URL de producción ---
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
+
+  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
+  static String get apiBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
     if (kReleaseMode) {
-      return _apiProduccion;
+      // Usamos la URL absoluta de tu despliegue en Vercel.
+      return _urlProduccion;
     }
 
-    // ASIGNACIÓN PARA WEB:
+    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
     if (kIsWeb) {
-      return 'http://localhost:3000/api';
+      // Desarrollo en web: apunta a localhost.
+      return 'http://localhost:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-
-      if (Platform.isAndroid) {
-        // En el emulador de Android, se "asigna" la IP especial del alias.
-        return 'http://10.0.2.2:3000/api';
-      }
-
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
+    if (Platform.isAndroid) {
+      // Emulador de Android: apunta a la IP especial del emulador.
+      return 'http://10.0.2.2:3000';
+    }
+    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
+    return 'http://$_ipDesarrolloLocal:3000';
   }
 
   // ===================================================================
@@ -43,7 +42,7 @@ class UsuarioService {
     required String nombre,
     required String password,
   }) async {
-    final url = Uri.parse('$_apiRoot/usuarios/login');
+    final url = Uri.parse('$apiBaseUrl/api/usuarios/login');
     debugPrint('Haciendo POST a: $url');
 
     try {
@@ -72,7 +71,7 @@ class UsuarioService {
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('$_apiRoot/usuarios');
+    final url = Uri.parse('$apiBaseUrl/usuarios');
     debugPrint('Haciendo POST a: $url');
 
     try {
@@ -101,7 +100,7 @@ class UsuarioService {
   // 3. OBTENER todos los usuarios
   // ===================================================================
   Future<List<Map<String, dynamic>>> obtenerUsuarios() async {
-    final url = Uri.parse('$_apiRoot/usuarios');
+    final url = Uri.parse('$apiBaseUrl/usuarios');
     debugPrint('Haciendo GET a: $url');
 
     try {
@@ -139,7 +138,7 @@ class UsuarioService {
     String? password,
     bool? admin,
   }) async {
-    final url = Uri.parse('$_apiRoot/usuarios/$email');
+    final url = Uri.parse('$apiBaseUrl/usuarios/$email');
     final Map<String, dynamic> body = {};
     if (nombre != null) body['nombre'] = nombre;
     if (password != null) body['password'] = password;
@@ -174,7 +173,7 @@ class UsuarioService {
   // ===================================================================
   Future<bool> eliminarUsuario(String email) async {
     try {
-      final url = Uri.parse('$_apiRoot/usuarios/$email');
+      final url = Uri.parse('$apiBaseUrl/usuarios/$email');
       final response = await http.delete(url);
       if (response.statusCode == 200) {
         debugPrint('Usuario eliminado exitosamente.');

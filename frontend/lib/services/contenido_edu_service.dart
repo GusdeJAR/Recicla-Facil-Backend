@@ -12,39 +12,19 @@ class ContenidoEduService {
 // ===================================================================
   // DETECTAR IP AUTOMÁTICAMENTE
   // ===================================================================
-  static const String _apiProduccion = '/api';
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
-    if (kReleaseMode) {
-      return _apiProduccion;
-    }
-
-    // ASIGNACIÓN PARA WEB:
-    if (kIsWeb) {
-      return 'http://localhost:3000/api';
-    }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-
-    if (Platform.isAndroid) {
-      // En el emulador de Android, se "asigna" la IP especial del alias.
-      return 'http://10.0.2.2:3000/api';
-    }
-
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
-  }
+  // --- URL de producción ---
+  // La URL raíz de tu proyecto desplegado en Vercel.
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app';
 
   static String get serverBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN:
     if (kReleaseMode) {
-      return '';
+      return _urlProduccion;
     }
 
-    // EN DESARROLLO LOCAL:
+    // SI ESTAMOS EN DESARROLLO:
     if (kIsWeb) {
       return 'http://localhost:3000';
     }
@@ -52,8 +32,16 @@ class ContenidoEduService {
       return 'http://10.0.2.2:3000';
     }
     // Dispositivo físico (iOS/Android):
-    return 'http://$_direccionIpLocal:3000';
+    return 'http://$_ipDesarrolloLocal:3000';
   }
+
+  /// **Getter para la URL BASE de la API (para llamadas GET, POST, etc.).**
+  /// Reutiliza serverBaseUrl y le añade el prefijo /api.
+  static String get apiBaseUrl {
+    return '${serverBaseUrl}/api';
+  }
+
+
   // ===================================================================
   // 1. OBTENER TODO EL CONTENIDO EDUCATIVO
   // ===================================================================
@@ -65,7 +53,7 @@ class ContenidoEduService {
     int limit = 10,
     int page = 1,
   }) async {
-    final uri = Uri.parse('$_apiRoot/contenido-educativo/');
+    final uri = Uri.parse('$apiBaseUrl/contenido-educativo/');
     debugPrint('ContenidoEduService - Obteniendo contenido en: $uri');
 
     try {
@@ -92,7 +80,7 @@ class ContenidoEduService {
   // 2. OBTENER CONTENIDO POR ID
   // ===================================================================
   Future<ContenidoEducativo> obtenerContenidoPorId(String id) async {
-    final url = Uri.parse('$_apiRoot/contenido-educativo/'+id);
+    final url = Uri.parse('$apiBaseUrl/contenido-educativo/'+id);
     debugPrint('ContenidoEduService - Obteniendo contenido por ID en: $url');
 
     try {
@@ -133,7 +121,7 @@ class ContenidoEduService {
     bool publicado = false,
     required int imgPrincipal,
   }) async {
-    final url = Uri.parse('$_apiRoot/contenido-educativo/');
+    final url = Uri.parse('$apiBaseUrl/contenido-educativo/');
     debugPrint('ContenidoEduService - Subiendo contenido a: $url');
 
     // Crear solicitud multipart
@@ -257,7 +245,7 @@ class ContenidoEduService {
     required List<dynamic> nuevasImagenes, // Dinámico para soportar File (móvil) y File web
     List<String>? idsImagenesAEliminar,
   }) async {
-    final url = Uri.parse('$_apiRoot/contenido-educativo/$id');
+    final url = Uri.parse('$apiBaseUrl/contenido-educativo/$id');
     debugPrint('ContenidoEduService - Actualizando contenido (multipart) en: $url');
 
     // Crear solicitud multipart, usando PUT para actualización
@@ -355,7 +343,7 @@ class ContenidoEduService {
   // 5. ELIMINAR CONTENIDO EDUCATIVO
   // ===================================================================
   Future<Map<String, dynamic>> eliminarContenidoEducativo(String id) async {
-    final url = Uri.parse('$_apiRoot/contenido-educativo/'+id);
+    final url = Uri.parse('$apiBaseUrl/contenido-educativo/'+id);
     debugPrint('ContenidoEduService - Eliminando contenido en: $url');
 
     try {
@@ -379,7 +367,7 @@ class ContenidoEduService {
   // 6. OBTENER CONTENIDO POR CATEGORÍA
   // ===================================================================
   Future<List<ContenidoEducativo>> obtenerContenidoPorCategoria(String categoria, {bool publicado = true}) async {
-    final uri = Uri.parse('$_apiRoot/contenido-educativo/categoria/'+categoria);
+    final uri = Uri.parse('$apiBaseUrl/contenido-educativo/categoria/'+categoria);
     debugPrint('ContenidoEduService - Obteniendo contenido por categoría en: $uri');
 
     try {
@@ -405,7 +393,7 @@ class ContenidoEduService {
   // 7. OBTENER CONTENIDO POR TIPO DE MATERIAL
   // ===================================================================
   Future<List<ContenidoEducativo>> obtenerContenidoPorTipoMaterial(String tipoMaterial, {bool publicado = true}) async {
-    final uri = Uri.parse('$_apiRoot/contenido-educativo/material/'+tipoMaterial);
+    final uri = Uri.parse('$apiBaseUrl/contenido-educativo/material/'+tipoMaterial);
     debugPrint('ContenidoEduService - Obteniendo contenido por tipo de material en: $uri');
 
     try {
@@ -431,7 +419,7 @@ class ContenidoEduService {
   // 8. BUSCAR CONTENIDO EDUCATIVO
   // ===================================================================
   Future<List<ContenidoEducativo>> buscarContenidoEducativo(String termino, {bool publicado = true}) async {
-    final uri = Uri.parse('$_apiRoot/contenido-educativo/buscar/'+termino);
+    final uri = Uri.parse('$apiBaseUrl/contenido-educativo/buscar/'+termino);
     debugPrint('ContenidoEduService - Buscando contenido en: $uri');
 
     try {

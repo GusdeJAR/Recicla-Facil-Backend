@@ -1,29 +1,14 @@
-{
-  "version": 2,
-  "builds": [
     {
-      "src": "backend/package.json",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["backend/**"]
-      }
-    },
-    {
-      "src": "frontend/pubspec.yaml",
-      "use": "@vercel/static",
-      "config": {
-        "distDir": "frontend/build/web"
-      }
+      "version": 2,
+      "rewrites": [
+        {
+          "source": "/api/:path*",
+          "destination": "/backend/index.js"
+        },
+        {
+          "source": "/(.*)",
+          "destination": "/frontend/build/web/index.html"
+        }
+      ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/backend/index.js"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/frontend/build/web/index.html"
-    }
-  ]
-}
+    

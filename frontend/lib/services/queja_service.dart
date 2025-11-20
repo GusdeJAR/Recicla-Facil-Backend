@@ -6,31 +6,31 @@ import 'package:flutter/foundation.dart';
 import '../models/queja.dart';
 
 class QuejaService {
-  static const String _apiProduccion = '/api';
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
+  // --- URLs de desarrollo ---
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
+  // --- URL de producción ---
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
+
+  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
+  static String get apiBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
     if (kReleaseMode) {
-      return _apiProduccion;
+      // Usamos la URL absoluta de tu despliegue en Vercel.
+      return _urlProduccion;
     }
 
-    // ASIGNACIÓN PARA WEB:
+    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
     if (kIsWeb) {
-      return 'http://localhost:3000/api';
+      // Desarrollo en web: apunta a localhost.
+      return 'http://localhost:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-
     if (Platform.isAndroid) {
-      // En el emulador de Android, se "asigna" la IP especial del alias.
-      return 'http://10.0.2.2:3000/api';
+      // Emulador de Android: apunta a la IP especial del emulador.
+      return 'http://10.0.2.2:3000';
     }
-
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
+    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
+    return 'http://$_ipDesarrolloLocal:3000';
   }
 
   // ===================================================================
@@ -41,7 +41,7 @@ class QuejaService {
     required String categoria,
     required String mensaje
   }) async {
-    final url = Uri.parse('$_apiRoot/quejas');
+    final url = Uri.parse('$apiBaseUrl/api/quejas');
     debugPrint('QuejaService - Creando queja en: $url');
 
     try {
@@ -72,7 +72,7 @@ class QuejaService {
   // 2. OBTENER MIS QUEJAS
   // ===================================================================
   Future<List<Queja>> obtenerMisQuejas(String email) async {
-    final url = Uri.parse('$_apiRoot/quejas/mis-quejas/$email');
+    final url = Uri.parse('$apiBaseUrl/api/quejas/mis-quejas/$email');
     debugPrint('QuejaService - Obteniendo mis quejas en: $url');
 
     try {
@@ -97,7 +97,7 @@ class QuejaService {
   // ===================================================================
   Future<List<Queja>> obtenerQuejasPorCategoria(String categoria) async {
     final String categoriaCodificada = Uri.encodeComponent(categoria);
-    final url = Uri.parse('$_apiRoot/quejas/categoria/$categoriaCodificada');
+    final url = Uri.parse('$apiBaseUrl/api/quejas/categoria/$categoriaCodificada');
     debugPrint('QuejaService - Obteniendo quejas por categoría en: $url');
 
     try {
@@ -121,7 +121,7 @@ class QuejaService {
   // 4. OBTENER QUEJAS PENDIENTES
   // ===================================================================
   Future<List<Queja>> obtenerQuejasPendientes() async {
-    final url = Uri.parse('$_apiRoot/quejas/pendientes');
+    final url = Uri.parse('$apiBaseUrl/api/quejas/pendientes');
     debugPrint('QuejaService - Obteniendo quejas pendientes en: $url');
 
     try {
@@ -145,7 +145,7 @@ class QuejaService {
   // 5. ATENDER QUEJA
   // ===================================================================
   Future<Map<String, dynamic>> atenderQueja(String quejaId, String respuestaAdmin) async {
-    final url = Uri.parse('$_apiRoot/quejas/$quejaId');
+    final url = Uri.parse('$apiBaseUrl/api/quejas/$quejaId');
     debugPrint('QuejaService - Atendiendo queja en: $url');
 
     try {
@@ -170,7 +170,7 @@ class QuejaService {
   // 6. ELIMINAR QUEJA
   // ===================================================================
   Future<Map<String, dynamic>> eliminarQueja(String quejaId) async {
-    final url = Uri.parse('$_apiRoot/quejas/$quejaId');
+    final url = Uri.parse('$apiBaseUrl/api/quejas/$quejaId');
     debugPrint('QuejaService - Eliminando queja en: $url');
 
     try {

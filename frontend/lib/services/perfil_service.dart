@@ -8,38 +8,37 @@ class PerfilService {
   // ===================================================================
   // DETECTAR IP AUTOMÁTICAMENTE
   // ===================================================================
-  static const String _apiProduccion = '/api';
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
+  // --- URL de producción ---
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
+
+  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
+  static String get apiBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
     if (kReleaseMode) {
-      return _apiProduccion;
+      // Usamos la URL absoluta de tu despliegue en Vercel.
+      return _urlProduccion;
     }
 
-    // ASIGNACIÓN PARA WEB:
+    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
     if (kIsWeb) {
-      return 'http://localhost:3000/api';
+      // Desarrollo en web: apunta a localhost.
+      return 'http://localhost:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-
     if (Platform.isAndroid) {
-      // En el emulador de Android, se "asigna" la IP especial del alias.
-      return 'http://10.0.2.2:3000/api';
+      // Emulador de Android: apunta a la IP especial del emulador.
+      return 'http://10.0.2.2:3000';
     }
-
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
+    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
+    return 'http://$_ipDesarrolloLocal:3000';
   }
 
   // ===================================================================
   // 1. OBTENER PERFIL DE USUARIO
   // ===================================================================
   static Future<Map<String, dynamic>> getUserProfile(String email) async {
-    final url = Uri.parse('$_apiRoot/usuarios/'+email);
+    final url = Uri.parse('$apiBaseUrl/api/usuarios/'+email);
     debugPrint('PerfilService - Obteniendo perfil en: $url');
 
     try {
@@ -66,7 +65,7 @@ class PerfilService {
     required String email,
     required String nuevaPassword
   }) async {
-    final url = Uri.parse('$_apiRoot/usuarios/cambiar-password');
+    final url = Uri.parse('$apiBaseUrl/api/usuarios/cambiar-password');
     debugPrint('PerfilService - Cambiando contraseña en: $url');
 
     try {
@@ -98,7 +97,7 @@ class PerfilService {
     String? nombre,
     String? nuevoEmail,
   }) async {
-    final url = Uri.parse('$_apiRoot/usuarios/email');
+    final url = Uri.parse('$apiBaseUrl/api/usuarios/email');
     debugPrint('PerfilService - Actualizando perfil en: $url');
 
     try {

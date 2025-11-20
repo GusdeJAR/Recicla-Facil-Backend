@@ -6,31 +6,30 @@ import 'package:http/http.dart' as http;
 import 'package:rf_sprint1/models/solicitud_punto.dart';
 
 class SolicitudesPuntosService {
-  static const String _apiProduccion = '/api';
-  static const String _direccionIpLocal = '192.168.137.115'; // <- CAMBIA ESTO POR TU IP
+  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
 
-  // 2. LÓGICA DE ASIGNACIÓN: Este getter elige la IP correcta según la plataforma.
-  static String get _apiRoot {
+  // --- URL de producción ---
+  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
+
+  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
+  static String get apiBaseUrl {
+    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
     if (kReleaseMode) {
-      return _apiProduccion;
+      // Usamos la URL absoluta de tu despliegue en Vercel.
+      return _urlProduccion;
     }
 
-    // ASIGNACIÓN PARA WEB:
+    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
     if (kIsWeb) {
-      return 'http://localhost:3000/api';
+      // Desarrollo en web: apunta a localhost.
+      return 'http://localhost:3000';
     }
-
-    // ASIGNACIÓN PARA MÓVIL (Android):
-
     if (Platform.isAndroid) {
-      // En el emulador de Android, se "asigna" la IP especial del alias.
-      return 'http://10.0.2.2:3000/api';
+      // Emulador de Android: apunta a la IP especial del emulador.
+      return 'http://10.0.2.2:3000';
     }
-
-
-    // ASIGNACIÓN PARA MÓVIL (iOS o dispositivo físico):
-    // Se "asigna" la IP de desarrollo configurada manualmente.
-    return 'http://$_direccionIpLocal:3000/api';
+    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
+    return 'http://$_ipDesarrolloLocal:3000';
   }
   // Método para obtener los headers con autenticación
   Map<String, String> _getHeaders(String? userName, bool isAdmin) => {
@@ -50,7 +49,7 @@ class SolicitudesPuntosService {
         bodyMap['ubicacion'] = ubicacion;
       }
       final response = await http.post(
-        Uri.parse('$_apiRoot/solicitudes-puntos'),
+        Uri.parse('$apiBaseUrl/api/solicitudes-puntos'),
         headers: _getHeaders(userName, isAdmin),
         body: jsonEncode(bodyMap),
       );
@@ -75,8 +74,8 @@ class SolicitudesPuntosService {
       // '/solicitudes-puntos/mis-solicitudes'. Evitamos el 404 eligiendo
       // la ruta según el rol.
       final uri = isAdmin
-          ? Uri.parse('$_apiRoot/solicitudes-puntos/admin/todas')
-          : Uri.parse('$_apiRoot/solicitudes-puntos/mis-solicitudes');
+          ? Uri.parse('$apiBaseUrl/api/solicitudes-puntos/admin/todas')
+          : Uri.parse('$apiBaseUrl/api/solicitudes-puntos/mis-solicitudes');
 
       final response = await http.get(
         uri,
@@ -137,7 +136,7 @@ class SolicitudesPuntosService {
   Future<bool> aprobarSolicitud(String solicitudId, {String? comentariosAdmin, required String userName, bool isAdmin = false}) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiRoot/solicitudes-puntos/admin/$solicitudId/aprobar'),
+        Uri.parse('$apiBaseUrl/api/solicitudes-puntos/admin/$solicitudId/aprobar'),
         headers: _getHeaders(userName, isAdmin),
         body: jsonEncode({
           'comentariosAdmin': comentariosAdmin ?? 'Solicitud aprobada',
@@ -160,7 +159,7 @@ class SolicitudesPuntosService {
   Future<bool> rechazarSolicitud(String solicitudId, String comentariosAdmin, {required String userName, bool isAdmin = false}) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiRoot/solicitudes-puntos/admin/$solicitudId/rechazar'),
+        Uri.parse('$apiBaseUrl/api/solicitudes-puntos/admin/$solicitudId/rechazar'),
         headers: _getHeaders(userName, isAdmin),
         body: jsonEncode({
           'comentariosAdmin': comentariosAdmin,
@@ -202,7 +201,7 @@ class SolicitudesPuntosService {
   Future<SolicitudPunto> obtenerSolicitudPorId(String solicitudId, {required String userName, bool isAdmin = false}) async {
     try {
       final response = await http.get(
-        Uri.parse('$_apiRoot/solicitudes-puntos/$solicitudId'),
+        Uri.parse('$apiBaseUrl/api/solicitudes-puntos/$solicitudId'),
         headers: _getHeaders(userName, isAdmin),
       );
 
@@ -222,7 +221,7 @@ class SolicitudesPuntosService {
   Future<bool> cancelarSolicitud(String solicitudId, {required String userName, bool isAdmin = false}) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiRoot/solicitudes-puntos/$solicitudId'),
+        Uri.parse('$apiBaseUrl/api/solicitudes-puntos/$solicitudId'),
         headers: _getHeaders(userName, isAdmin),
         body: jsonEncode({
           'estado': 'cancelada',
@@ -245,7 +244,7 @@ class SolicitudesPuntosService {
   Future<bool> actualizarSolicitud(String solicitudId, SolicitudPunto solicitud, {required String userName, bool isAdmin = false}) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiRoot/solicitudes-puntos/$solicitudId'),
+        Uri.parse('$apiBaseUrl/api/solicitudes-puntos/$solicitudId'),
         headers: _getHeaders(userName, isAdmin),
         body: jsonEncode(solicitud.toJson()),
       );
