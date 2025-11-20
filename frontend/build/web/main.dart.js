@@ -98816,7 +98816,7 @@ A.a2g.prototype={}
 A.vp.prototype={
 xw(){var s=0,r=A.F(t.cG),q,p=2,o=[],n,m,l,k,j,i,h,g
 var $async$xw=A.B(function(a,b){if(a===1){o.push(b)
-s=p}while(true)switch(s){case 0:h=A.ca(A.ob()+"/api/contenido-educativo/")
+s=p}while(true)switch(s){case 0:h=A.ca(A.ob()+"/api/contenido-educativo")
 A.bb().$1("ContenidoEduService - Obteniendo contenido en: "+A.k(h))
 p=4
 j=t.N
