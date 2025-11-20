@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path'); 
-const conectarDB = require('../config/db');
+const conectarDB = require('../config/db'); //Aquí
 const router = require('../routes/router');
 const serverless = require("serverless-http");
 
