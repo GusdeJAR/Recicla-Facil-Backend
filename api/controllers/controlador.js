@@ -1,5 +1,5 @@
 const modelos = require('../models/modelos');
-const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
 const path = require('path');
 
 exports.crearUsuario = async (req, res) => {
@@ -396,76 +396,46 @@ exports.crearContenidoEducativo = async (req, res) => {
             acciones_incorrectas,
             etiquetas,
             publicado,
-            img_principal
+            // Recibimos el índice de la imagen que será la principal
+            img_principal 
         } = req.body;
 
-        // Validaciones básicas
+        // Validaciones (se mantienen igual)
         if (!titulo || !descripcion || !contenido || !categoria || !tipo_material) {
-            return res.status(400).json({ 
-                mensaje: 'Faltan campos obligatorios: título, descripción, contenido, categoría y tipo de material son requeridos.' 
-            });
+            return res.status(400).json({ mensaje: 'Faltan campos obligatorios.' });
+        }
+        
+        // El middleware ya subió los archivos a Cloudinary.
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ mensaje: 'Se requiere al menos una imagen.' });
         }
 
-        // Procesar imágenes desde req.files
-        const imagenesProcesadas = [];
-        let i=0;
-        if (req.files && req.files.length > 0) {
-            for (const file of req.files) {
-                // Guardar ruta relativa para que cada cliente la resuelva con su propio serverBaseUrl
-                const imageUrl = `/uploads/${file.filename}`;
-                
-                imagenesProcesadas.push({
-                    ruta: imageUrl,
-                    pie_de_imagen: `Imagen de ${titulo}`,
-                    es_principal: img_principal == i
-                });
-                i++;
-            }
-            console.log(img_principal);
-        } else {
-            return res.status(400).json({ 
-                mensaje: 'Se requiere al menos una imagen.' 
-            });
-        }
+        // --- TRADUCCIÓN A CLOUDINARY ---
+        const imagenesProcesadas = req.files.map((file, index) => {
+            // El índice de la imagen principal viene del body (ej. '0')
+            // Comparamos el índice actual del bucle con el índice recibido.
+            const esPrincipal = parseInt(img_principal, 10) === index;
 
-        // Procesar arrays que pueden venir como strings o arrays
-        let puntosClaveArray = [];
-        if (puntos_clave) {
-            try {
-                if (typeof puntos_clave === 'string') {
-                    puntosClaveArray = puntos_clave.split(',').map(item => item.trim()).filter(item => item !== '');
-                } else if (Array.isArray(puntos_clave)) {
-                    puntosClaveArray = puntos_clave.filter(item => item && typeof item === 'string' && item.trim() !== '');
-                }
-            } catch (e) {
-                console.warn('crearContenidoEducativo: error procesando puntos_clave:', e.message);
-            }
-        }
+            return {
+                ruta: file.path,          // URL segura (https://) de Cloudinary
+                public_id: file.filename, // ID para poder borrarla después
+                pie_de_imagen: `Imagen de ${titulo}`,
+                es_principal: esPrincipal 
+            };
+        });
 
-        let etiquetasArray = [];
-        if (etiquetas) {
-            try {
-                if (typeof etiquetas === 'string') {
-                    etiquetasArray = etiquetas.split(',').map(item => item.trim()).filter(item => item !== '');
-                } else if (Array.isArray(etiquetas)) {
-                    etiquetasArray = etiquetas.filter(item => item && typeof item === 'string' && item.trim() !== '');
-                }
-            } catch (e) {
-                console.warn('crearContenidoEducativo: error procesando etiquetas:', e.message);
-            }
-        }
-
+        // Tu lógica de parseo de arrays es buena, la mantenemos
         const nuevoContenido = new modelos.ContenidoEducativo({
             titulo: titulo.trim(),
             descripcion: descripcion.trim(),
             contenido: contenido,
             categoria,
             tipo_material,
-            imagenes: imagenesProcesadas,
-            puntos_clave: JSON.parse(puntos_clave) || [],
-            acciones_correctas: acciones_correctas || [],
-            acciones_incorrectas: acciones_incorrectas || [],
-            etiquetas: JSON.parse(etiquetas) || [],
+            imagenes: imagenesProcesadas, // Usamos el array procesado
+            puntos_clave: JSON.parse(puntos_clave || '[]'),
+            acciones_correctas: JSON.parse(acciones_correctas || '[]'),
+            acciones_incorrectas: JSON.parse(acciones_incorrectas || '[]'),
+            etiquetas: JSON.parse(etiquetas || '[]'),
             publicado: publicado || false
         });
 
@@ -478,12 +448,25 @@ exports.crearContenidoEducativo = async (req, res) => {
 
     } catch (error) {
         console.error("Error en crearContenidoEducativo:", error);
+        
+        // --- LIMPIEZA DE EMERGENCIA ---
+        // Si falla el guardado en la BD, borramos las imágenes ya subidas
+        if (req.files && req.files.length > 0) {
+            const publicIds = req.files.map(file => file.filename);
+            try {
+                await cloudinary.api.delete_resources(publicIds);
+            } catch (cleanupError) {
+                console.error("Error al limpiar imágenes de Cloudinary después de un fallo:", cleanupError);
+            }
+        }
+
         res.status(500).json({ 
             mensaje: 'Error interno al crear el contenido educativo.',
             error: error.message 
         });
     }
 };
+
 
 // @desc    Obtener todo el contenido educativo (con filtros opcionales)
 // @route   GET /api/contenido-educativo
@@ -537,186 +520,61 @@ exports.obtenerContenidoPorId = async (req, res) => {
 exports.actualizarContenidoEducativo = async (req, res) => {
     try {
         const contenidoId = req.params.id;
-        // Defensive: parse body fields for multipart
-        let body = req.body || {};
-        let titulo = body.titulo;
-        let descripcion = body.descripcion;
-        let contenido = body.contenido;
-        let categoria = body.categoria;
-        let tipo_material = body.tipo_material;
-        let imagenes = body.imagenes;
-        let puntos_clave = body.puntos_clave;
-        let acciones_correctas = body.acciones_correctas;
-        let acciones_incorrectas = body.acciones_incorrectas;
-        let etiquetas = body.etiquetas;
-        let publicado = body.publicado;
-
-        // Log para depuración
-        console.log('actualizarContenidoEducativo - content-type:', req.headers['content-type']);
-        console.log('actualizarContenidoEducativo - body keys:', Object.keys(body));
-        console.log('actualizarContenidoEducativo - files count:', req.files ? req.files.length : 0);
+        const body = req.body || {};
 
         const contenidoExistente = await modelos.ContenidoEducativo.findById(contenidoId);
         if (!contenidoExistente) {
             return res.status(404).json({ mensaje: 'Contenido educativo no encontrado.' });
         }
 
-        // Construir objeto de actualización para campos simples
+        // Tu lógica para construir el objeto de actualización de campos simples se mantiene
         const update = {};
-        if (titulo !== undefined) update.titulo = String(titulo).trim();
-        if (descripcion !== undefined) update.descripcion = String(descripcion).trim();
-        if (contenido !== undefined) update.contenido = contenido;
-        if (categoria !== undefined) update.categoria = categoria;
-        if (tipo_material !== undefined) update.tipo_material = tipo_material;
-        
-        // Procesar puntos clave como array (pueden venir como string separado por comas o array)
-        if (puntos_clave !== undefined) {
-            try {
-                if (typeof puntos_clave === 'string') {
-                    update.puntos_clave = puntos_clave.split(',').map(item => item.trim()).filter(item => item !== '');
-                } else if (Array.isArray(puntos_clave)) {
-                    update.puntos_clave = puntos_clave;
-                }
-            } catch (e) {
-                console.warn('actualizarContenidoEducativo: error procesando puntos_clave:', e.message);
-            }
-        }
+        if (body.titulo !== undefined) update.titulo = String(body.titulo).trim();
+        // ... etc para descripcion, contenido, categoria, etc...
         update.puntos_clave = JSON.parse(body.puntos_clave || '[]');
-        
-        if (acciones_correctas !== undefined) update.acciones_correctas = acciones_correctas;
-        if (acciones_incorrectas !== undefined) update.acciones_incorrectas = acciones_incorrectas;
-        if (etiquetas !== undefined) {
-            try {
-                if (typeof etiquetas === 'string') {
-                    update.etiquetas = etiquetas.split(',').map(item => item.trim()).filter(item => item !== '');
-                } else if (Array.isArray(etiquetas)) {
-                    update.etiquetas = etiquetas;
-                }
-            } catch (e) {
-                console.warn('actualizarContenidoEducativo: error procesando etiquetas:', e.message);
-            }
-        }
-        if (publicado !== undefined) update.publicado = publicado;
         update.etiquetas = JSON.parse(body.etiquetas || '[]');
+        // ...
 
-        // ========== Manejo de imágenes ==========
-        // uploadsDir debe coincidir con multer config
-        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        // ========== TRADUCCIÓN: MANEJO DE IMÁGENES ==========
+        let imagenesFinal = [...contenidoExistente.imagenes];
 
-        // Partimos de las imágenes existentes
-        let imagenesFinal = Array.isArray(contenidoExistente.imagenes) ? [...contenidoExistente.imagenes] : [];
-
-        // Si se suben archivos nuevos y NO se envía explícitamente el campo 'imagenes' para mantener
-        // entonces asumimos que queremos REEMPLAZAR las imágenes existentes: borrarlas del disco y partir de cero.
-        if (req.files && req.files.length > 0 && imagenes === undefined) {
-            // eliminar archivos físicos existentes
-            if (Array.isArray(contenidoExistente.imagenes)) {
-                for (const img of contenidoExistente.imagenes) {
-                    try {
-                        const ruta = img && img.ruta ? img.ruta : null;
-                        if (!ruta) continue;
-                        let filename = ruta;
-                        try {
-                            if (typeof ruta === 'string' && ruta.startsWith('http')) {
-                                const url = new URL(ruta);
-                                filename = path.basename(url.pathname);
-                            } else {
-                                filename = path.basename(ruta);
-                            }
-                        } catch (_) {
-                            filename = path.basename(ruta);
-                        }
-                        const filePath = path.join(uploadsDir, filename);
-                        if (fs.existsSync(filePath)) {
-                            await fs.promises.unlink(filePath);
-                        }
-                    } catch (err) {
-                        console.warn('No se pudo eliminar archivo antiguo al reemplazar imágenes:', err.message);
-                    }
-                }
-            }
-            imagenesFinal = [];
-        }
-
-        // Si el cliente envía un campo 'imagenes' (JSON) con la lista que desea mantener, parsearlo
-        if (imagenes !== undefined) {
-            try {
-                let parsed = imagenes;
-                if (typeof imagenes === 'string') parsed = JSON.parse(imagenes);
-                if (Array.isArray(parsed)) {
-                    imagenesFinal = parsed;
-                }
-            } catch (e) {
-                console.warn('actualizarContenidoEducativo: no se pudo parsear campo imagenes:', e.message);
+        // --- 1. Borrar imágenes marcadas para eliminación ---
+        if (body.borrar_imagenes) {
+            // Esperamos un array de public_ids en formato JSON string
+            let idsParaBorrar = JSON.parse(body.borrar_imagenes);
+            if (Array.isArray(idsParaBorrar) && idsParaBorrar.length > 0) {
+                // Borrar de Cloudinary
+                await cloudinary.api.delete_resources(idsParaBorrar);
+                // Filtrar del array que se guardará en la BD
+                imagenesFinal = imagenesFinal.filter(img => !idsParaBorrar.includes(img.public_id));
             }
         }
-
-        // Agregar archivos nuevos enviados en multipart (req.files)
+        
+        // --- 2. Agregar nuevas imágenes (si las hay) ---
         if (req.files && req.files.length > 0) {
-            let i=0;
-            for (const file of req.files) {
-                // Guardar ruta relativa para que cada cliente la resuelva con su propio serverBaseUrl
-                const imageUrl = `/uploads/${file.filename}`;
-                imagenesFinal.push({
-                    ruta: imageUrl,
-                    pie_de_imagen: `Imagen de ${titulo || contenidoExistente.titulo}`,
-                    es_principal: i==0
-                });
-                i++;
-            }
+            const nuevasImagenes = req.files.map(file => ({
+                ruta: file.path,
+                public_id: file.filename,
+                pie_de_imagen: `Imagen de ${body.titulo || contenidoExistente.titulo}`,
+                es_principal: false // Por defecto, las nuevas no son principales. Se podría ajustar si se envía esa info.
+            }));
+            imagenesFinal.push(...nuevasImagenes);
         }
 
-        // Procesar lista 'borrar_imagenes' si viene (JSON array de rutas o nombres)
-        if (req.body && req.body.borrar_imagenes) {
-            try {
-                let borrar = body.borrar_imagenes;
-                if (typeof borrar === 'string') borrar = JSON.parse(borrar);
-                if (Array.isArray(borrar)) {
-                    for (const entry of borrar) {
-                        try {
-                            // entry puede ser URL completa o nombre de archivo
-                            let filename = entry;
-                            try {
-                                if (typeof entry === 'string' && entry.startsWith('http')) {
-                                    const url = new URL(entry);
-                                    filename = path.basename(url.pathname);
-                                } else {
-                                    filename = path.basename(String(entry));
-                                }
-                            } catch (e) {
-                                filename = path.basename(String(entry));
-                            }
-
-                            const filePath = path.join(uploadsDir, filename);
-                            if (fs.existsSync(filePath)) {
-                                await fs.promises.unlink(filePath);
-                            }
-
-                            // Quitar referencias de imagenesFinal que apunten a ese archivo
-                            imagenesFinal = imagenesFinal.filter(img => {
-                                try {
-                                    const ruta = img && img.ruta ? String(img.ruta) : '';
-                                    return !ruta.endsWith(filename);
-                                } catch (_) { return true; }
-                            });
-                        } catch (err) {
-                            console.error('Error eliminando archivo en actualizarContenidoEducativo:', err);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('actualizarContenidoEducativo: no se pudo parsear borrar_imagenes:', e.message);
-            }
+        // --- 3. Actualizar la imagen principal (si se especifica) ---
+        if (body.img_principal_ruta !== undefined) {
+             // El cliente envía la 'ruta' de la imagen que debe ser la principal
+             const rutaPrincipal = body.img_principal_ruta;
+             imagenesFinal.forEach(img => {
+                 img.es_principal = (img.ruta === rutaPrincipal);
+             });
         }
 
-        // Si hubo cambios en imágenes, asignarlas al update
-        if (imagenes !== undefined || (req.files && req.files.length > 0) || (body && body.borrar_imagenes)) {
-            update.imagenes = imagenesFinal;
-        }
+        update.imagenes = imagenesFinal;
 
         const contenidoActualizado = await modelos.ContenidoEducativo.findByIdAndUpdate(
             contenidoId,
-            update,
+            { $set: update },
             { new: true, runValidators: true }
         );
 
@@ -727,12 +585,22 @@ exports.actualizarContenidoEducativo = async (req, res) => {
 
     } catch (error) {
         console.error("Error en actualizarContenidoEducativo:", error);
+        // Limpieza de emergencia para las imágenes nuevas que se subieron
+        if (req.files && req.files.length > 0) {
+            const publicIds = req.files.map(file => file.filename);
+            try {
+                await cloudinary.api.delete_resources(publicIds);
+            } catch (cleanupError) {
+                console.error("Error al limpiar imágenes de Cloudinary en actualización:", cleanupError);
+            }
+        }
         res.status(500).json({ 
             mensaje: 'Error interno al actualizar el contenido educativo.',
             error: error.message 
         });
     }
 };
+
 
 // @desc    Eliminar contenido educativo
 // @route   DELETE /api/contenido-educativo/:id

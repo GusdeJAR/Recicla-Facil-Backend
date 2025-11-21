@@ -1,42 +1,32 @@
 // config/multer.config.js
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 
-// Asegurar que la carpeta uploads existe (ruta absoluta dentro de la carpeta /api)
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        // Generar nombre único con timestamp
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const extension = path.extname(file.originalname);
-        cb(null, 'contenido-' + uniqueSuffix + extension);
-    }
+cloudinary.config({
+  cloud_name: 'dugacfyo1',     
+  api_key: '497871225357139',        
+  api_secret: 'SQY4OdjOqSpo03jLYXzNFchzdLo',    
 });
 
-const fileFilter = (req, file, cb) => {
-    // if (file.mimetype.startsWith('image/')) {
-    //     cb(null, true);
-    // } else {
-    //     cb(new Error('Solo se permiten archivos de imagen (JPEG, PNG, JPG)'), false);
-    // }
-    cb(null, true); // Permitir todos los tipos de archivos
-};
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'recicla-facil/contenido', 
+    allowed_formats: ['jpeg', 'png', 'jpg'], 
+    public_id: (req, file) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        return `contenido-${uniqueSuffix}`;
+    },
+  },
+});
 
 const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024, // Límite de 5MB por archivo
-        files: 10 // Máximo 10 archivos
-    }
+  storage: storage, 
+  limits: {
+    fileSize: 5 * 1024 * 1024, 
+  }
 });
 
 module.exports = upload;
