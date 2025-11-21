@@ -1,3 +1,5 @@
+//Se ocupa cambiar por otro servicio de correos, como SendGrid
+
 const { Resend } = require('resend');
 
 const resend = new Resend('re_Uoqafv2M_6rAAJX2MLYARh7u6ywaLxiir');
