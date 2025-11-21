@@ -4,7 +4,7 @@ const resend = new Resend('re_Uoqafv2M_6rAAJX2MLYARh7u6ywaLxiir');
 
 async function enviarCorreo(destinatario, asunto, texto) {
     await resend.emails.send({
-        from: 'ReciclaFacil <apariciorgustavo@gmail.com>',
+        from: 'ReciclaFacil <onboarding@resend.dev>',
         to: destinatario,
         subject: asunto,
         html: `<p>${texto}</p>`
