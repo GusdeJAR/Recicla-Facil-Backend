@@ -4,6 +4,7 @@ import 'package:rf_sprint1/providers/auth_provider.dart';
 import 'package:rf_sprint1/providers/puntos_provider.dart';
 import 'package:rf_sprint1/providers/solicitudes_provider.dart';
 import 'package:rf_sprint1/views/contenido/contenido_tabs_screen.dart';
+import 'package:rf_sprint1/views/forgot_password_screen.dart';
 
 // Importa tus vistas y providers
 import 'package:rf_sprint1/views/perfil/perfilUsuario_screen.dart';
@@ -63,7 +64,8 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => ProfileScreen(),
         '/quejas': (context) => QuejasTabsScreen(),
         '/contenido-educativo': (context) => ContenidoScreen(),
-        '/puntos-reciclaje': (context) => PuntosTabsScreen()
+        '/puntos-reciclaje': (context) => PuntosTabsScreen(),
+        '/forgot-password': (context) => ForgotPasswordScreen(),
       },
     );
   }

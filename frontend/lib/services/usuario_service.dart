@@ -164,4 +164,29 @@ class UsuarioService {
       return false;
     }
   }
+    // ===================================================================
+  // 6. RECUPERAR contraseña por email
+  // ===================================================================
+  Future<Map<String, dynamic>> recuperarPassword({
+    required String email,
+  }) async {
+    final url = Uri.parse('$apiBaseUrl/api/usuarios/recuperar-password');
+    debugPrint('Haciendo POST a: $url');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: json.encode({'email': email}),
+      ).timeout(const Duration(seconds: 10));
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      responseData['statusCode'] = response.statusCode;
+      return responseData;
+    } on TimeoutException {
+      throw Exception('Tiempo de espera agotado. Revisa tu conexión.');
+    } catch (e) {
+      throw Exception('Error de conexión: $e');
+    }
+  }
+
 }
+
