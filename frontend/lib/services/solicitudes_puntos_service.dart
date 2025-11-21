@@ -6,31 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:rf_sprint1/models/solicitud_punto.dart';
 
 class SolicitudesPuntosService {
-  static const String _ipDesarrolloLocal = '192.168.137.115'; // <- TU IP
+  String apiBaseUrl = 'https://recicla-facil-backend.vercel.app/';
 
-  // --- URL de producción ---
-  static const String _urlProduccion = 'https://recicla-facil-backend.vercel.app'; // <- TU DOMINIO DE VERCEL
-
-  /// **Este getter elige la URL BASE COMPLETA correcta según la plataforma.**
-  static String get apiBaseUrl {
-    // SI ESTAMOS EN PRODUCCIÓN (compilado con `flutter build`):
-    if (kReleaseMode) {
-      // Usamos la URL absoluta de tu despliegue en Vercel.
-      return _urlProduccion;
-    }
-
-    // SI ESTAMOS EN DESARROLLO (ejecutado con `flutter run`):
-    if (kIsWeb) {
-      // Desarrollo en web: apunta a localhost.
-      return 'http://localhost:3000';
-    }
-    if (Platform.isAndroid) {
-      // Emulador de Android: apunta a la IP especial del emulador.
-      return 'http://10.0.2.2:3000';
-    }
-    // Dispositivo físico (iOS/Android): apunta a la IP de tu PC.
-    return 'http://$_ipDesarrolloLocal:3000';
-  }
   // Método para obtener los headers con autenticación
   Map<String, String> _getHeaders(String? userName, bool isAdmin) => {
     'Content-Type': 'application/json',

@@ -38,7 +38,7 @@ class ImagenRedWidget extends StatelessWidget {
       // Si es una ruta relativa, le añadimos el prefijo del servidor.
       // `serverBaseUrl` será "http://..." en desarrollo y "" (vacío) en producción.
       // Esta operación es INSTANTÁNEA.
-      urlFinal = ContenidoEduService.serverBaseUrl + rutaOUrl!;
+      urlFinal = ContenidoEduService.apiBaseUrl + rutaOUrl!;
     }
 
     debugPrint('[ImagenRedWidget] Mostrando imagen desde: $urlFinal');

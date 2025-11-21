@@ -129,38 +129,40 @@ class _ContenidoUsuarioScreenState extends State<ContenidoUsuarioScreen> {
           color: Colors.white,
           child: Column(
             children: [
-              DropdownButtonFormField<TipoBusqueda>(
-                value: _tipoBusquedaSeleccionada,
-                decoration: InputDecoration(
-                  labelText: 'Buscar por:',
-                  hintText: 'Seleccione alguna de las opciones para hacer la búsqueda',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
+               DropdownButtonFormField<TipoBusqueda>(
+                  isExpanded: true,
+                  value: _tipoBusquedaSeleccionada,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por:',
+                    hintText: 'Seleccione alguna de las opciones para hacer la búsqueda',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
                   ),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
+                  items: [
+                    DropdownMenuItem(
+                      value: TipoBusqueda.porTermino,
+                      child: Text('Término (título, desc., etiqueta)'),
+                    ),
+                    DropdownMenuItem(
+                      value: TipoBusqueda.porCategoria,
+                      child: Text('Categoría'),
+                    ),
+                    DropdownMenuItem(
+                      value: TipoBusqueda.porTipoMaterial,
+                      child: Text('Tipo de material'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _tipoBusquedaSeleccionada = value;
+                      });
+                    }
+                  },
                 ),
-                items: [
-                  DropdownMenuItem(
-                    value: TipoBusqueda.porTermino,
-                    child: Text('Término (título, desc., etiqueta)'),
-                  ),
-                  DropdownMenuItem(
-                    value: TipoBusqueda.porCategoria,
-                    child: Text('Categoría'),
-                  ),
-                  DropdownMenuItem(
-                    value: TipoBusqueda.porTipoMaterial,
-                    child: Text('Tipo de material'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _tipoBusquedaSeleccionada = value;
-                    });
-                  }
-                },
-              ),
+
               SizedBox(height: 12),
               Row(
                 children: [
