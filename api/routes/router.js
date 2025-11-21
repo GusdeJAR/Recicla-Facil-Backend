@@ -18,6 +18,7 @@ router.post('/usuarios/login', controlador.loginUsuario);
 router.put('/usuarios/:email', controlador.actualizarUsuario);
 router.delete('/usuarios/:email', controlador.eliminarUsuario);
 router.post('/usuarios/cambiar-password', controlador.cambiarPassword);
+router.post('/usuarios/recuperar-password', controlador.recuperarPassword);
 
 // =========================================================================
 // RUTAS DE QUEJAS

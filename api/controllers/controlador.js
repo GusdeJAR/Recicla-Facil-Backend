@@ -1,6 +1,35 @@
 const modelos = require('../models/modelos');
 const fs = require('fs');
 const path = require('path');
+const { enviarCorreo } = require('../services/mailService');
+// ===================================================================
+// @desc    Recuperar contraseña por email y enviarla por correo
+// @route   POST /api/usuarios/recuperar-password
+// @access  Público
+// ===================================================================
+exports.recuperarPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ mensaje: 'El email es requerido.' });
+        }
+        // Buscar usuario por email
+        const usuario = await modelos.Usuario.findOne({ email: email.trim() });
+        if (!usuario) {
+            return res.status(404).json({ mensaje: 'No se encontró usuario con ese email.' });
+        }
+        // Enviar la contraseña por correo
+        await enviarCorreo(
+            email,
+            'Recuperación de contraseña',
+            `Tu contraseña es: ${usuario.password}`
+        );
+        res.status(200).json({ mensaje: 'La contraseña ha sido enviada a tu correo.' });
+    } catch (error) {
+        console.error('Error en recuperarPassword:', error);
+        res.status(500).json({ mensaje: 'Error interno al recuperar la contraseña.' });
+    }
+};
 
 exports.crearUsuario = async (req, res) => {
      try {
