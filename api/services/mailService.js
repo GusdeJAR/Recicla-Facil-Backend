@@ -1,24 +1,13 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+const resend = new Resend('re_KtfoQvjE_BrYdGJ8YAgznKtV2SiCGExsE');
 
 async function enviarCorreo(destinatario, asunto, texto) {
-    // Configura el transporte SMTP (puedes usar Gmail, Outlook, etc.)
-    let transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: "jr9509171@gmail.com", // Tu correo
-            pass: "roas1234"  // Tu contraseña o app password
-        }
-    });
-
-    let mailOptions = {
-        from: "jr9509171@gmail.com",
+    await resend.emails.send({
+        from: 'onboarding@resend.dev',
         to: destinatario,
         subject: asunto,
-        text: texto
-    };
-
-    // Envía el correo
-    await transporter.sendMail(mailOptions);
+        html: `<p>${texto}</p>`
+    });
 }
-
 module.exports = { enviarCorreo };
