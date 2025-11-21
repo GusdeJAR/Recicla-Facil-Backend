@@ -5,7 +5,6 @@ const router = require('./routes/router'); // La ruta ahora es directa
 const conectarDB = require('./config/db');   // La ruta ahora es directa
 
 const app = express();
-
 conectarDB();
 
 app.use(cors());
