@@ -23,34 +23,27 @@ class ContenidoEduService {
 
     final request = http.MultipartRequest('POST', uri)
       ..fields['upload_preset'] = UPLOAD_PRESET;
-    if (kIsWeb) {
-      // 🌐 WEB: Leemos los bytes directamente
-      final fileBytes = await imagen.readAsBytes();
 
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file', // Clave requerida por Cloudinary
-          fileBytes,
-          filename: imagen.name, // Usamos el nombre del archivo
-        ),
-      );
-    } else {
-      // 📱 MÓVIL/DESKTOP: Usamos la ruta (donde dart:io está disponible)
-      final path = imagen.path;
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'file',
-          path,
-          filename: imagen.name,
-        ),
-      );
-    }
+    // 2. LECTURA UNIVERSAL DE BYTES
+    // Este es el paso clave. readAsBytes() funciona en Web y Móvil/Desktop.
+    final fileBytes = await imagen.readAsBytes();
 
+    // 3. Adjuntar el archivo usando fromBytes (compatible con la Web)
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file', // Clave requerida por Cloudinary
+        fileBytes,
+        filename: imagen.name, // Usamos el nombre del archivo
+      ),
+    );
+
+    // 4. Enviar la solicitud y procesar la respuesta
     try {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode != 200) {
+        // Si recibes un error 400/500 aquí, es un problema de CLOUD_NAME o PRESET
         throw Exception('Fallo en la subida a Cloudinary: ${response.body}');
       }
 
@@ -62,9 +55,10 @@ class ContenidoEduService {
       );
     } catch (e) {
       debugPrint('Error en la subida a Cloudinary: $e');
-      throw Exception('Error al subir la imagen.');
+      throw Exception('Error al subir la imagen: ${e.toString()}');
     }
   }
+    
   // ===================================================================
   // 1. OBTENER TODO EL CONTENIDO EDUCATIVO
   // ===================================================================
