@@ -51,13 +51,14 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
     _descripcionController = TextEditingController(text: widget.punto.descripcion);
     _tiposSeleccionados = List<String>.from(widget.punto.tipoMaterial);
     final String telefonoLimpio = widget.punto.telefono.replaceAll(RegExp(r'\D'), '');
-    String telefonoParaMostrar;
-    if (telefonoLimpio.length > 10) {
-      telefonoParaMostrar = telefonoLimpio.substring(telefonoLimpio.length - 10);
-    } else {
-      telefonoParaMostrar = telefonoLimpio;
+    String telefonoFormateado = telefonoLimpio;
+    if (telefonoLimpio.length == 10) {
+      telefonoFormateado =
+          '${telefonoLimpio.substring(0, 3)} ' +
+              '${telefonoLimpio.substring(3, 6)} ' +
+              '${telefonoLimpio.substring(6, 10)}';
     }
-    _telefonoController = TextEditingController(text: telefonoParaMostrar);
+    _telefonoController = TextEditingController(text: telefonoFormateado);
     _parsearHorarioInicial(widget.punto.horario);
     if (diaSeleccionado2 != null && !getOpcionesDias2().contains(diaSeleccionado2)) {
       diaSeleccionado2 = null;
