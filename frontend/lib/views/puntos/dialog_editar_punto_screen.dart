@@ -124,16 +124,17 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
   Future<void> _submitForm() async {
     final esFormularioValido = _formKey.currentState?.validate() ?? false;
     final sonMaterialesValidos = _tiposSeleccionados.isNotEmpty;
-
+    final String telefonoLimpio = _telefonoController.text.replaceAll(RegExp(r'\D'), '');
     if (esFormularioValido && sonMaterialesValidos) {
       setState(() => _estaCargando = true);
 
-      final nuevoHorario = '${diaSeleccionado1 ?? ''} a ${diaSeleccionado2 ?? ''} : ${horaSeleccionada1 ?? ''} - ${horaSeleccionada2 ?? ''}';      final bool exito = await PuntosReciclajeService.actualizarPuntoReciclaje(
+      final nuevoHorario = '${diaSeleccionado1 ?? ''} a ${diaSeleccionado2 ?? ''} : ${horaSeleccionada1 ?? ''} - ${horaSeleccionada2 ?? ''}';
+      final bool exito = await PuntosReciclajeService.actualizarPuntoReciclaje(
         puntoId: widget.punto.id,
         nombre: _nombreController.text,
         descripcion: _descripcionController.text,
-        tipo_material: _tiposSeleccionados, // <-- Cambio clave
-        telefono: _telefonoController.text,
+        tipo_material: _tiposSeleccionados,
+        telefono: telefonoLimpio,
         horario: nuevoHorario,
       );
 
@@ -238,12 +239,14 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
                       keyboardType: TextInputType.phone,
                         validator: (value) {
                           if (value!.isEmpty) return 'Ingresa un teléfono de contacto';
-                          if (value.length < 10) {
+                          final String cleanValue = value.replaceAll(RegExp(r'\D'), '');
+                          if (cleanValue.length < 10) {
                             return 'El número de teléfono no puede ser menor a diez cifras';
                           }
-                          if (value.length > 10) {
+                          if (cleanValue.length > 10) {
                             return 'El número de teléfono no puede ser mayor a diez cifras';
                           }
+                          return null;
                         }
                     ),
                     SizedBox(height: 16),
