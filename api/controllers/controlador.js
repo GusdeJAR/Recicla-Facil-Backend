@@ -567,6 +567,7 @@ exports.obtenerContenidoPorId = async (req, res) => {
 // @desc    Actualizar contenido educativo
 // @route   PUT /api/contenido-educativo/:id
 // @access  Privado (Admin)
+
 exports.actualizarContenidoEducativo = async (req, res) => {
     // Array para almacenar los Public IDs de las nuevas imágenes en caso de fallo
     let newUploadedPublicIds = [];
@@ -584,20 +585,19 @@ exports.actualizarContenidoEducativo = async (req, res) => {
         // 1. CONSTRUCCIÓN DEL OBJETO DE ACTUALIZACIÓN ($set)
         const update = {};
         
-        // --- Actualización de Campos Simples (Solo si existen en el body) ---
+        // --- Actualización de Campos Simples ---
         if (body.titulo !== undefined) update.titulo = String(body.titulo).trim();
         if (body.descripcion !== undefined) update.descripcion = String(body.descripcion).trim();
         if (body.contenido !== undefined) update.contenido = body.contenido;
         if (body.categoria !== undefined) update.categoria = body.categoria;
         if (body.tipo_material !== undefined) update.tipo_material = body.tipo_material;
         
-        // Manejar booleano: el cliente lo envía como 'true' o 'false' (string)
+        // Manejar booleano
         if (body.publicado !== undefined) {
              update.publicado = body.publicado === 'true' || body.publicado === true;
         }
 
         // --- Actualización de Campos Array (Parseo de JSON) ---
-        // Los campos array deben ser parseados de JSON string a objeto JS/Array
         if (body.puntos_clave !== undefined) update.puntos_clave = JSON.parse(body.puntos_clave || '[]');
         if (body.acciones_correctas !== undefined) update.acciones_correctas = JSON.parse(body.acciones_correctas || '[]');
         if (body.acciones_incorrectas !== undefined) update.acciones_incorrectas = JSON.parse(body.acciones_incorrectas || '[]');
@@ -606,29 +606,31 @@ exports.actualizarContenidoEducativo = async (req, res) => {
         // Actualizar fecha de actualización
         update.fecha_actualizacion = new Date();
 
-
-        // ========== 2. MANEJO DE IMÁGENES CON CLOUDINARY ==========
-        let imagenesFinal = [...contenidoExistente.imagenes];
+        // ========== 2. MANEJO DE IMÁGENES CON CLOUDINARY - LÓGICA DE SUSTITUCIÓN ==========
+        
+        // Inicializamos con las imágenes existentes. Esto se usa para:
+        // 1. La lógica de eliminación parcial (si no hay archivos nuevos).
+        // 2. Obtener los IDs de las imágenes antiguas para la limpieza.
+        let imagenesFinal = [...contenidoExistente.imagenes]; 
 
         // --- 2.1. Borrar imágenes marcadas para eliminación (Cloudinary) ---
-        // El cliente envía 'borrar_imagenes' como un JSON string de public_ids
-        if (body.ids_imagenes_a_eliminar) { // Usamos el nombre del cliente por consistencia
-            let idsParaBorrar = JSON.parse(body.ids_imagenes_a_eliminar); 
-            if (Array.isArray(idsParaBorrar) && idsParaBorrar.length > 0) {
-                try {
-                    // Borrar de Cloudinary
-                    await cloudinary.api.delete_resources(idsParaBorrar);
-                } catch (cloudError) {
-                    console.error('Error al intentar eliminar imágenes de Cloudinary:', cloudError);
-                    // No detenemos el proceso, pero registramos el error
-                }
-                // Filtrar del array que se guardará en la BD
-                imagenesFinal = imagenesFinal.filter(img => !idsParaBorrar.includes(img.public_id));
-            }
+        let idsParaBorrar = [];
+        if (body.ids_imagenes_a_eliminar) {
+             idsParaBorrar = JSON.parse(body.ids_imagenes_a_eliminar); 
+             if (Array.isArray(idsParaBorrar) && idsParaBorrar.length > 0) {
+                 try {
+                     await cloudinary.api.delete_resources(idsParaBorrar);
+                 } catch (cloudError) {
+                     console.error('Error al intentar eliminar imágenes de Cloudinary:', cloudError);
+                 }
+                 // Filtrar las que se eliminarán si es una actualización parcial
+                 imagenesFinal = imagenesFinal.filter(img => !idsParaBorrar.includes(img.public_id));
+             }
         }
         
-        // --- 2.2. Agregar nuevas imágenes (Subida a Cloudinary) ---
+        // --- 2.2. Sustitución/Agregar nuevas imágenes (Subida a Cloudinary) ---
         if (req.files && req.files.length > 0) {
+            
             // 🚀 CLOUDINARY: SUBIDA DE NUEVOS ARCHIVOS
             const uploadPromises = req.files.map(file => {
                 const b64 = Buffer.from(file.buffer).toString('base64');
@@ -640,27 +642,44 @@ exports.actualizarContenidoEducativo = async (req, res) => {
             });
 
             const uploadResults = await Promise.all(uploadPromises);
-            
-            // Guardamos los IDs para la limpieza de emergencia
             newUploadedPublicIds = uploadResults.map(result => result.public_id);
 
-            // Mapeamos los resultados de Cloudinary
             const nuevasImagenes = uploadResults.map(result => ({
                 ruta: result.secure_url,
                 public_id: result.public_id,
                 pie_de_imagen: `Imagen de ${body.titulo || contenidoExistente.titulo}`,
-                es_principal: false // Por defecto
+                es_principal: false 
             }));
             
-            imagenesFinal.push(...nuevasImagenes);
-        }
+            // =========================================================================
+            // LÓGICA DE SUSTITUCIÓN COMPLETA (si hay nuevos archivos):
+            
+            // 1. Eliminar de Cloudinary todas las imágenes antiguas que quedaron en `imagenesFinal` 
+            //    (porque no se incluyeron en ids_imagenes_a_eliminar).
+            const idsRetenidosParaBorrar = imagenesFinal.map(img => img.public_id);
+            if(idsRetenidosParaBorrar.length > 0) {
+                try {
+                    await cloudinary.api.delete_resources(idsRetenidosParaBorrar);
+                } catch(err) {
+                     console.error('Advertencia: No se pudieron eliminar las imágenes antiguas no deseadas:', err);
+                }
+            }
+            
+            // 2. SUSTITUCIÓN: Reemplazar el array completo con solo las imágenes nuevas.
+            imagenesFinal = nuevasImagenes; 
+            
+            // =========================================================================
 
+        } else if (body.imagenes_a_retener) { 
+             // Opcional: Si no hay archivos nuevos, pero el cliente envía una lista JSON de las URLs a mantener,
+             // asumimos que quiere borrar las viejas que no estén en esa lista y las que marcó para eliminar.
+             imagenesFinal = JSON.parse(body.imagenes_a_retener);
+        }
+        
         // --- 2.3. Actualizar la imagen principal (si se especifica) ---
         if (body.img_principal_ruta !== undefined) {
-             // El cliente envía la 'ruta' de la imagen que debe ser la principal (o la nueva)
              const rutaPrincipal = body.img_principal_ruta;
              imagenesFinal.forEach(img => {
-                 // Desactivamos todas, luego activamos la que coincida con la ruta
                  img.es_principal = (img.ruta === rutaPrincipal);
              });
         }
@@ -670,35 +689,33 @@ exports.actualizarContenidoEducativo = async (req, res) => {
         
         // 3. EJECUTAR LA ACTUALIZACIÓN EN MONGO
         const contenidoActualizado = await modelos.ContenidoEducativo.findByIdAndUpdate(
-            contenidoId,
-            { $set: update }, // Usamos $set para aplicar el objeto 'update'
-            { new: true, runValidators: true }
+             contenidoId,
+             { $set: update }, 
+             { new: true, runValidators: true }
         );
 
         res.status(200).json({
-            mensaje: 'Contenido educativo actualizado con éxito.',
-            contenido: contenidoActualizado
+             mensaje: 'Contenido educativo actualizado con éxito.',
+             contenido: contenidoActualizado
         });
 
     } catch (error) {
         console.error("Error en actualizarContenidoEducativo:", error);
         
         // 4. LIMPIEZA DE EMERGENCIA: Borrar nuevas imágenes subidas si la BD falló
-        if (newUploadedPublicIds.length > 0) {
-            try {
-                // Borrar los archivos que sí se subieron a Cloudinary
-                await cloudinary.api.delete_resources(newUploadedPublicIds);
-            } catch (cleanupError) {
-                console.error("Error al limpiar imágenes de Cloudinary en actualización:", cleanupError);
-            }
-        }
-        res.status(500).json({ 
-            mensaje: 'Error interno al actualizar el contenido educativo.',
-            error: error.message 
-        });
+         if (newUploadedPublicIds.length > 0) {
+             try {
+                 await cloudinary.api.delete_resources(newUploadedPublicIds);
+             } catch (cleanupError) {
+                 console.error("Error al limpiar imágenes de Cloudinary en actualización:", cleanupError);
+             }
+         }
+         res.status(500).json({ 
+             mensaje: 'Error interno al actualizar el contenido educativo.',
+             error: error.message 
+         });
     }
 };
-
 
 // @desc    Eliminar contenido educativo
 // @route   DELETE /api/contenido-educativo/:id
