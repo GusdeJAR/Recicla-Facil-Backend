@@ -31,5 +31,11 @@
       "src": "/(.*)",
       "dest": "/frontend/build/web/index.html"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/frontend/build/web/index.html"
+    }
   ]
 }
