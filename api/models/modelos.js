@@ -97,6 +97,10 @@ const contenidoEducativoSchema = new mongoose.Schema({
             type: String,
             required: [true, 'La ruta de la imagen es obligatoria']
         },
+        public_id: { 
+            type: String, 
+            required: [true, 'El ID público de Cloudinary es obligatorio']
+        },
         pie_de_imagen: {
             type: String,
             default: ''

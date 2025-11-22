@@ -2,6 +2,7 @@ const express = require('express');
 const router=express.Router();
 const controlador=require('../controllers/controlador');
 const upload = require('../config/multer.config');
+const cloudinary = require('../config/cloudinary');
 
 router.get('/test', (req, res) => {
   console.log(">>> ÉXITO: La ruta GET /test ha sido alcanzada en router.js.");

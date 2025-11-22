@@ -1,6 +1,7 @@
 const modelos = require('../models/modelos');
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require('../config/cloudinary');
 const path = require('path');
+const { URL } = require('url'); 
 const { enviarCorreo } = require('../services/mailService');
 // ===================================================================
 // @desc    Recuperar contraseña por email y enviarla por correo
@@ -411,8 +412,10 @@ exports.eliminarQueja = async (req, res) => {
 // @desc    Crear nuevo contenido educativo
 // @route   POST /api/contenido-educativo
 // @access  Privado (Admin)
-
 exports.crearContenidoEducativo = async (req, res) => {
+    // Array para almacenar los Public IDs en caso de fallo posterior
+    let uploadedPublicIds = [];
+    
     try {
         const {
             titulo,
@@ -434,26 +437,45 @@ exports.crearContenidoEducativo = async (req, res) => {
             return res.status(400).json({ mensaje: 'Faltan campos obligatorios.' });
         }
         
-        // El middleware ya subió los archivos a Cloudinary.
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ mensaje: 'Se requiere al menos una imagen.' });
         }
 
+        // =======================================================
+        // 🚀 CLOUDINARY: SUBIDA DE MÚLTIPLES ARCHIVOS
+        // =======================================================
+        const uploadPromises = req.files.map(file => {
+            // Convertir el buffer a Base64 Data URI
+            const b64 = Buffer.from(file.buffer).toString('base64');
+            const dataURI = `data:${file.mimetype};base64,${b64}`;
+
+            return cloudinary.uploader.upload(dataURI, {
+                folder: "contenido-educativo", // Carpeta en Cloudinary
+            });
+        });
+
+        // Esperamos a que todas las promesas de subida se resuelvan
+        const uploadResults = await Promise.all(uploadPromises);
+
+        // Guardamos los IDs para la limpieza de emergencia
+        uploadedPublicIds = uploadResults.map(result => result.public_id);
+        // =======================================================
+
         // --- TRADUCCIÓN A CLOUDINARY ---
-        const imagenesProcesadas = req.files.map((file, index) => {
+        const imagenesProcesadas = uploadResults.map((result, index) => {
             // El índice de la imagen principal viene del body (ej. '0')
-            // Comparamos el índice actual del bucle con el índice recibido.
             const esPrincipal = parseInt(img_principal, 10) === index;
 
             return {
-                ruta: file.path,          // URL segura (https://) de Cloudinary
-                public_id: file.filename, // ID para poder borrarla después
+                // CAMBIO CLAVE: Usamos result.secure_url y result.public_id
+                ruta: result.secure_url,       // URL segura (https://) de Cloudinary
+                public_id: result.public_id,   // ID para poder borrarla después
                 pie_de_imagen: `Imagen de ${titulo}`,
                 es_principal: esPrincipal 
             };
         });
 
-        // Tu lógica de parseo de arrays es buena, la mantenemos
+        // ... Tu lógica de parseo de arrays se mantiene
         const nuevoContenido = new modelos.ContenidoEducativo({
             titulo: titulo.trim(),
             descripcion: descripcion.trim(),
@@ -478,12 +500,11 @@ exports.crearContenidoEducativo = async (req, res) => {
     } catch (error) {
         console.error("Error en crearContenidoEducativo:", error);
         
-        // --- LIMPIEZA DE EMERGENCIA ---
-        // Si falla el guardado en la BD, borramos las imágenes ya subidas
-        if (req.files && req.files.length > 0) {
-            const publicIds = req.files.map(file => file.filename);
+        // --- LIMPIEZA DE EMERGENCIA (Ahora usa los IDs de la subida) ---
+        if (uploadedPublicIds.length > 0) {
             try {
-                await cloudinary.api.delete_resources(publicIds);
+                // Borrar los archivos que sí se subieron a Cloudinary
+                await cloudinary.api.delete_resources(uploadedPublicIds);
             } catch (cleanupError) {
                 console.error("Error al limpiar imágenes de Cloudinary después de un fallo:", cleanupError);
             }
@@ -547,63 +568,110 @@ exports.obtenerContenidoPorId = async (req, res) => {
 // @route   PUT /api/contenido-educativo/:id
 // @access  Privado (Admin)
 exports.actualizarContenidoEducativo = async (req, res) => {
+    // Array para almacenar los Public IDs de las nuevas imágenes en caso de fallo
+    let newUploadedPublicIds = [];
+
     try {
         const contenidoId = req.params.id;
-        const body = req.body || {};
+        // req.body contiene todos los campos de texto/JSON serializado del formulario multipart
+        const body = req.body || {}; 
 
         const contenidoExistente = await modelos.ContenidoEducativo.findById(contenidoId);
         if (!contenidoExistente) {
             return res.status(404).json({ mensaje: 'Contenido educativo no encontrado.' });
         }
 
-        // Tu lógica para construir el objeto de actualización de campos simples se mantiene
+        // 1. CONSTRUCCIÓN DEL OBJETO DE ACTUALIZACIÓN ($set)
         const update = {};
+        
+        // --- Actualización de Campos Simples (Solo si existen en el body) ---
         if (body.titulo !== undefined) update.titulo = String(body.titulo).trim();
-        // ... etc para descripcion, contenido, categoria, etc...
-        update.puntos_clave = JSON.parse(body.puntos_clave || '[]');
-        update.etiquetas = JSON.parse(body.etiquetas || '[]');
-        // ...
+        if (body.descripcion !== undefined) update.descripcion = String(body.descripcion).trim();
+        if (body.contenido !== undefined) update.contenido = body.contenido;
+        if (body.categoria !== undefined) update.categoria = body.categoria;
+        if (body.tipo_material !== undefined) update.tipo_material = body.tipo_material;
+        
+        // Manejar booleano: el cliente lo envía como 'true' o 'false' (string)
+        if (body.publicado !== undefined) {
+             update.publicado = body.publicado === 'true' || body.publicado === true;
+        }
 
-        // ========== TRADUCCIÓN: MANEJO DE IMÁGENES ==========
+        // --- Actualización de Campos Array (Parseo de JSON) ---
+        // Los campos array deben ser parseados de JSON string a objeto JS/Array
+        if (body.puntos_clave !== undefined) update.puntos_clave = JSON.parse(body.puntos_clave || '[]');
+        if (body.acciones_correctas !== undefined) update.acciones_correctas = JSON.parse(body.acciones_correctas || '[]');
+        if (body.acciones_incorrectas !== undefined) update.acciones_incorrectas = JSON.parse(body.acciones_incorrectas || '[]');
+        if (body.etiquetas !== undefined) update.etiquetas = JSON.parse(body.etiquetas || '[]');
+        
+        // Actualizar fecha de actualización
+        update.fecha_actualizacion = new Date();
+
+
+        // ========== 2. MANEJO DE IMÁGENES CON CLOUDINARY ==========
         let imagenesFinal = [...contenidoExistente.imagenes];
 
-        // --- 1. Borrar imágenes marcadas para eliminación ---
-        if (body.borrar_imagenes) {
-            // Esperamos un array de public_ids en formato JSON string
-            let idsParaBorrar = JSON.parse(body.borrar_imagenes);
+        // --- 2.1. Borrar imágenes marcadas para eliminación (Cloudinary) ---
+        // El cliente envía 'borrar_imagenes' como un JSON string de public_ids
+        if (body.ids_imagenes_a_eliminar) { // Usamos el nombre del cliente por consistencia
+            let idsParaBorrar = JSON.parse(body.ids_imagenes_a_eliminar); 
             if (Array.isArray(idsParaBorrar) && idsParaBorrar.length > 0) {
-                // Borrar de Cloudinary
-                await cloudinary.api.delete_resources(idsParaBorrar);
+                try {
+                    // Borrar de Cloudinary
+                    await cloudinary.api.delete_resources(idsParaBorrar);
+                } catch (cloudError) {
+                    console.error('Error al intentar eliminar imágenes de Cloudinary:', cloudError);
+                    // No detenemos el proceso, pero registramos el error
+                }
                 // Filtrar del array que se guardará en la BD
                 imagenesFinal = imagenesFinal.filter(img => !idsParaBorrar.includes(img.public_id));
             }
         }
         
-        // --- 2. Agregar nuevas imágenes (si las hay) ---
+        // --- 2.2. Agregar nuevas imágenes (Subida a Cloudinary) ---
         if (req.files && req.files.length > 0) {
-            const nuevasImagenes = req.files.map(file => ({
-                ruta: file.path,
-                public_id: file.filename,
+            // 🚀 CLOUDINARY: SUBIDA DE NUEVOS ARCHIVOS
+            const uploadPromises = req.files.map(file => {
+                const b64 = Buffer.from(file.buffer).toString('base64');
+                const dataURI = `data:${file.mimetype};base64,${b64}`;
+
+                return cloudinary.uploader.upload(dataURI, {
+                    folder: "contenido-educativo",
+                });
+            });
+
+            const uploadResults = await Promise.all(uploadPromises);
+            
+            // Guardamos los IDs para la limpieza de emergencia
+            newUploadedPublicIds = uploadResults.map(result => result.public_id);
+
+            // Mapeamos los resultados de Cloudinary
+            const nuevasImagenes = uploadResults.map(result => ({
+                ruta: result.secure_url,
+                public_id: result.public_id,
                 pie_de_imagen: `Imagen de ${body.titulo || contenidoExistente.titulo}`,
-                es_principal: false // Por defecto, las nuevas no son principales. Se podría ajustar si se envía esa info.
+                es_principal: false // Por defecto
             }));
+            
             imagenesFinal.push(...nuevasImagenes);
         }
 
-        // --- 3. Actualizar la imagen principal (si se especifica) ---
+        // --- 2.3. Actualizar la imagen principal (si se especifica) ---
         if (body.img_principal_ruta !== undefined) {
-             // El cliente envía la 'ruta' de la imagen que debe ser la principal
+             // El cliente envía la 'ruta' de la imagen que debe ser la principal (o la nueva)
              const rutaPrincipal = body.img_principal_ruta;
              imagenesFinal.forEach(img => {
+                 // Desactivamos todas, luego activamos la que coincida con la ruta
                  img.es_principal = (img.ruta === rutaPrincipal);
              });
         }
-
+        
+        // --- 2.4. Finalizar el objeto de actualización de imágenes ---
         update.imagenes = imagenesFinal;
-
+        
+        // 3. EJECUTAR LA ACTUALIZACIÓN EN MONGO
         const contenidoActualizado = await modelos.ContenidoEducativo.findByIdAndUpdate(
             contenidoId,
-            { $set: update },
+            { $set: update }, // Usamos $set para aplicar el objeto 'update'
             { new: true, runValidators: true }
         );
 
@@ -614,11 +682,12 @@ exports.actualizarContenidoEducativo = async (req, res) => {
 
     } catch (error) {
         console.error("Error en actualizarContenidoEducativo:", error);
-        // Limpieza de emergencia para las imágenes nuevas que se subieron
-        if (req.files && req.files.length > 0) {
-            const publicIds = req.files.map(file => file.filename);
+        
+        // 4. LIMPIEZA DE EMERGENCIA: Borrar nuevas imágenes subidas si la BD falló
+        if (newUploadedPublicIds.length > 0) {
             try {
-                await cloudinary.api.delete_resources(publicIds);
+                // Borrar los archivos que sí se subieron a Cloudinary
+                await cloudinary.api.delete_resources(newUploadedPublicIds);
             } catch (cleanupError) {
                 console.error("Error al limpiar imágenes de Cloudinary en actualización:", cleanupError);
             }
@@ -638,59 +707,47 @@ exports.eliminarContenidoEducativo = async (req, res) => {
     try {
         const contenidoId = req.params.id;
 
-        // Primero buscamos el documento para obtener las rutas de las imágenes
+        // 1. Buscamos el documento para obtener los Public IDs
         const contenido = await modelos.ContenidoEducativo.findById(contenidoId);
         if (!contenido) {
             return res.status(404).json({ mensaje: 'Contenido educativo no encontrado.' });
         }
 
-        // Directorio donde multer guarda las imágenes (coincide con config/multer.config.js)
-        const uploadsDir = path.join(__dirname, '..', 'uploads');
-
-        const archivosEliminados = [];
-        // Intentar eliminar cada archivo referenciado en contenido.imagenes
+        const publicIds = [];
+        // 2. Recolectar todos los Public IDs de las imágenes
         if (Array.isArray(contenido.imagenes)) {
             for (const img of contenido.imagenes) {
-                try {
-                    const ruta = img && img.ruta ? img.ruta : null;
-                    if (!ruta) continue;
-
-                    // La ruta almacenada es una URL pública (ej. http://host/uploads/archivo.jpg)
-                    // Extraemos el nombre de archivo
-                    let filename = ruta;
-                    try {
-                        if (typeof ruta === 'string' && ruta.startsWith('http')) {
-                            const url = new URL(ruta);
-                            filename = path.basename(url.pathname);
-                        } else {
-                            filename = path.basename(ruta);
-                        }
-                    } catch (e) {
-                        // Si falló el parseo como URL, usar basename directamente
-                        filename = path.basename(ruta);
-                    }
-
-                    const filePath = path.join(uploadsDir, filename);
-                    if (fs.existsSync(filePath)) {
-                        await fs.promises.unlink(filePath);
-                        archivosEliminados.push(filename);
-                    } else {
-                        // Archivo no existe; loggear para debug pero continuar
-                        console.warn(`Archivo no encontrado al intentar eliminar: ${filePath}`);
-                    }
-                } catch (err) {
-                    console.error('Error eliminando imagen vinculada al contenido:', err);
-                    // continuar con las demás imágenes
+                // Verificamos que el campo 'public_id' exista y lo agregamos
+                if (img && img.public_id) {
+                    publicIds.push(img.public_id);
                 }
             }
         }
+        
+        // 3. Eliminar los archivos de Cloudinary (si existen Public IDs)
+        if (publicIds.length > 0) {
+            try {
+                // Cloudinary puede eliminar múltiples recursos a la vez
+                const result = await cloudinary.api.delete_resources(publicIds);
+                console.log('Archivos eliminados de Cloudinary:', result);
+                
+                // NOTA: Si necesitas eliminar solo la carpeta y no los recursos, usarías destroy()
+                // Pero delete_resources es la opción estándar.
+            } catch (err) {
+                // Manejar error de eliminación de Cloudinary. 
+                // A menudo, se ignora si Cloudinary falla pero la BD debe eliminarse.
+                console.error('Error al intentar eliminar imágenes de Cloudinary:', err);
+                // NOTA: Continuamos con la eliminación de la BD aunque Cloudinary falle,
+                // para evitar que la BD se quede con datos huérfanos.
+            }
+        }
 
-        // Finalmente eliminar el documento de la base de datos
+        // 4. Finalmente, eliminar el documento de la base de datos
         await modelos.ContenidoEducativo.findByIdAndDelete(contenidoId);
 
         res.status(200).json({ 
-            mensaje: 'Contenido educativo eliminado exitosamente.',
-            archivosEliminados
+            mensaje: 'Contenido educativo y archivos vinculados eliminados exitosamente.',
+            archivosEliminados: publicIds // Reportamos los IDs que se intentó eliminar
         });
 
     } catch (error) {
