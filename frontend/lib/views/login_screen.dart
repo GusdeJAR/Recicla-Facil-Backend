@@ -221,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(height: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushReplacementNamed(context, '/register');
+                              Navigator.pushNamed(context, '/register');
                             },
                             child:  Text(
                               '¿No tienes una cuenta? Regístrate',
