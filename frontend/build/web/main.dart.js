@@ -100529,7 +100529,8 @@ h=null
 a6=b1.b
 if(a6!=null)h=c[a6].a
 else if(a4.length!==0)h=A.cS(J.as(B.b.ga5(a4),"ruta"))
-p=11
+if(b1.a.length!==0){a4=b1.b
+if(a4!=null)b.E(0,c[a4].b)}p=11
 c=e.r.a.a
 a4=e.w.a.a
 a6=e.x.a.a

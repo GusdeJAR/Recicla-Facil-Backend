@@ -239,7 +239,16 @@ class _GestionarContenidoScreenState extends State<GestionarContenidoScreen> {
                 // Si no se seleccionó una existente, asumimos la primera de la lista final (puede ser la primera nueva)
                 rutaImagenPrincipal = imagenesFinal.first['ruta'] as String?;
               }
+              if (_nuevasImagenes.isNotEmpty) {
+                // Si hay nuevas imágenes Y existe una principal antigua...
+                if (_imagenPrincipalExistente != null) {
+                  final imagenPrincipalAntigua = contenidoAEditar.imagenes[_imagenPrincipalExistente!];
 
+                  // 🚨 Añadimos la imagen principal antigua a la lista de eliminación
+                  _imagenesAEliminar.add(imagenPrincipalAntigua.public_id);
+                }
+                // Si la imagen nueva es simplemente ADICIONAL y no sustituye, no hagas esto.
+              }
               // -----------------------------------------------------------
               // 5. LLAMADA AL SERVICIO
               // -----------------------------------------------------------

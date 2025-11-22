@@ -58,7 +58,7 @@ class ContenidoEduService {
       throw Exception('Error al subir la imagen: ${e.toString()}');
     }
   }
-    
+
   // ===================================================================
   // 1. OBTENER TODO EL CONTENIDO EDUCATIVO
   // ===================================================================
