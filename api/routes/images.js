@@ -1,7 +1,7 @@
 // /routes/images.js
 const express = require('express');
 const router = express.Router();
-const upload = require('../middlewares/multer.config'); // El Multer configurado
+const upload = require('../config/multer.config'); // El Multer configurado
 const cloudinary = require('../config/cloudinary'); // La configuración de Cloudinary
 
 router.post('/upload', upload.single('imagen'), async (req, res) => {
