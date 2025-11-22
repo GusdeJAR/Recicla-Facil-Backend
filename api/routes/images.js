@@ -1,8 +1,7 @@
-// /routes/images.js
 const express = require('express');
 const router = express.Router();
-const upload = require('../config/multer.config'); // El Multer configurado
-const cloudinary = require('../config/cloudinary'); // La configuración de Cloudinary
+const upload = require('../config/multer.config'); 
+const cloudinary = require('../config/cloudinary'); 
 
 router.post('/upload', upload.single('imagen'), async (req, res) => {
   try {
@@ -12,20 +11,28 @@ router.post('/upload', upload.single('imagen'), async (req, res) => {
     }
 
     // 2. Convertir el Buffer del archivo a formato Base64 para Cloudinary
-    // Se incluye el 'data:mimetype;base64,' para que Cloudinary pueda interpretar el formato.
     const b64 = Buffer.from(req.file.buffer).toString('base64');
     let dataURI = "data:" + req.file.mimetype + ";base64," + b64;
-
+    
+    // **NUEVO: Extraer el nombre original del archivo sin la extensión**
+    const originalFileName = req.file.originalname.split('.')[0];
+    
     // 3. Subir la imagen a Cloudinary
     const result = await cloudinary.uploader.upload(dataURI, {
-      folder: "proyecto_node" // Puedes especificar una carpeta de destino
+      folder: "proyecto_node",
+      // ********************************************************
+      // *** ⭐️ CAMBIO CLAVE: Usar el nombre original como public_id ***
+      // ********************************************************
+      public_id: originalFileName, 
+      // Opcional: Para evitar que añada sufijos únicos si ya existe
+      unique_filename: false 
     });
 
     // 4. Responder con la URL de la imagen
     res.status(200).json({
       message: 'Imagen subida con éxito',
       imageUrl: result.secure_url,
-      publicId: result.public_id
+      publicId: result.public_id // Ahora publicId debe coincidir con el nombre original
     });
 
   } catch (err) {
