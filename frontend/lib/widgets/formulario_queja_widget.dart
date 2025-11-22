@@ -54,7 +54,12 @@ import '../services/queja_service.dart';
           );
           return;
         }
-
+        if (categoriaSeleccionada == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: La categoría no ha sido seleccionada. Por favor, inténtalo de nuevo.'), backgroundColor: Colors.red),
+          );
+          return;
+        }
         setState(() => _isLoading = true);
 
         try {
