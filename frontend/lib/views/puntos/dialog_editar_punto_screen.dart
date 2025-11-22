@@ -49,7 +49,15 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
     super.initState();
     _nombreController = TextEditingController(text: widget.punto.nombre);
     _descripcionController = TextEditingController(text: widget.punto.descripcion);
-    _tiposSeleccionados = List<String>.from(widget.punto.tipoMaterial);    _telefonoController = TextEditingController(text: widget.punto.telefono);
+    _tiposSeleccionados = List<String>.from(widget.punto.tipoMaterial);
+    final String telefonoLimpio = widget.punto.telefono.replaceAll(RegExp(r'\D'), '');
+    String telefonoParaMostrar;
+    if (telefonoLimpio.length > 10) {
+      telefonoParaMostrar = telefonoLimpio.substring(telefonoLimpio.length - 10);
+    } else {
+      telefonoParaMostrar = telefonoLimpio;
+    }
+    _telefonoController = TextEditingController(text: telefonoParaMostrar);
     _parsearHorarioInicial(widget.punto.horario);
     if (diaSeleccionado2 != null && !getOpcionesDias2().contains(diaSeleccionado2)) {
       diaSeleccionado2 = null;
@@ -241,10 +249,10 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
                           if (value!.isEmpty) return 'Ingresa un teléfono de contacto';
                           final String cleanValue = value.replaceAll(RegExp(r'\D'), '');
                           if (cleanValue.length < 10) {
-                            return 'El número de teléfono no puede ser menor a diez cifras';
+                            return 'El número de teléfono debe ser de 10 dígitos (actual: ${cleanValue.length}).';
                           }
                           if (cleanValue.length > 10) {
-                            return 'El número de teléfono no puede ser mayor a diez cifras';
+                            return 'El número de teléfono no puede ser mayor a diez cifras (actual: ${cleanValue.length}).';
                           }
                           return null;
                         }
