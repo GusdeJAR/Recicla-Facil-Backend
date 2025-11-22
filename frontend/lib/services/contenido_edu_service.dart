@@ -23,17 +23,28 @@ class ContenidoEduService {
 
     final request = http.MultipartRequest('POST', uri)
       ..fields['upload_preset'] = UPLOAD_PRESET;
+    if (kIsWeb) {
+      // 🌐 WEB: Leemos los bytes directamente
+      final fileBytes = await imagen.readAsBytes();
 
-    // 2. Adjuntar el archivo
-    // Nota: En la web, usarás 'imagen.readAsBytes()', pero para móvil es más común el path
-    final path = imagen.path;
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file', // Clave requerida por Cloudinary
-        path,
-        //contentType: MediaType('image', 'jpeg'), // Opcional
-      ),
-    );
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file', // Clave requerida por Cloudinary
+          fileBytes,
+          filename: imagen.name, // Usamos el nombre del archivo
+        ),
+      );
+    } else {
+      // 📱 MÓVIL/DESKTOP: Usamos la ruta (donde dart:io está disponible)
+      final path = imagen.path;
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          path,
+          filename: imagen.name,
+        ),
+      );
+    }
 
     try {
       final streamedResponse = await request.send();
