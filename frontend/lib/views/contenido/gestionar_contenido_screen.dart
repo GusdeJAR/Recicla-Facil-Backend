@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +8,7 @@ import 'dart:typed_data';
 
 
 // Asegúrate de que las rutas de importación sean correctas para tu proyecto
+import '../../models/cloudinary_image.dart';
 import '../../models/contenido_educativo.dart';
 import '../../widgets/imagen_red_widget.dart';
 import '../../services/contenido_edu_service.dart';
@@ -176,25 +179,92 @@ class _GestionarContenidoScreenState extends State<GestionarContenidoScreen> {
               }
             }
             Future<void> _guardarCambios() async {
+              List<CloudinaryImage> nuevasImagenesCloudinary = [];
+
+              // 2. Iniciar carga
               setStateDialog(() { _estaGuardando = true; });
 
               final puntosClaveList = _puntosClaveController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
               final etiquetasList = _etiquetasController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
+              // -----------------------------------------------------------
+              // 3. LÓGICA DE SUBIDA DE IMÁGENES NUEVAS A CLOUDINARY
+              // -----------------------------------------------------------
+              if (_nuevasImagenes.isNotEmpty) {
+                try {
+                  final uploadPromises = _nuevasImagenes.map((imagen) => ContenidoEduService.subirImagen(imagen)).toList();
+
+                  // Esperamos a que todas las subidas terminen
+                  nuevasImagenesCloudinary = await Future.wait(uploadPromises);
+
+                } catch (e) {
+                  // Si la subida falla, detenemos el proceso
+                  setStateDialog(() { _estaGuardando = false; });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al subir nuevas imágenes a Cloudinary: $e'), backgroundColor: Colors.red),
+                  );
+                  return; // Detiene la función
+                }
+              }
+
+              // -----------------------------------------------------------
+              // 4. PREPARACIÓN FINAL DE DATOS PARA EL BACKEND
+              // -----------------------------------------------------------
+
+              // a) Imágenes Finales (Necesarias solo para determinar la ruta principal si es nueva)
+              List<Map<String, dynamic>> imagenesRetenidas = contenidoAEditar.imagenes
+                  .where((img) => !_imagenesAEliminar.contains(img.public_id))
+                  .map((img) => {
+                // Asegúrate de que las propiedades del modelo ContenidoEducativo.Image coincidan
+                'ruta': img.ruta,
+                'public_id': img.public_id,
+                'pie_de_imagen': img.pieDeImagen,
+                'es_principal': img.esPrincipal,
+              })
+                  .toList();
+
+              List<Map<String, dynamic>> imagenesFinal = [
+                ...imagenesRetenidas,
+                // Nota: aquí solo se usan los datos de CloudinaryImage que tienen ruta y public_id
+                ...nuevasImagenesCloudinary.map((img) => img.toJson()),
+              ];
+
+              // b) Definir la URL principal
+              String? rutaImagenPrincipal;
+
+              if (_imagenPrincipalExistente != null) {
+                // Si la principal es una imagen existente, usamos su ruta
+                rutaImagenPrincipal = contenidoAEditar.imagenes[_imagenPrincipalExistente].ruta;
+              } else if (imagenesFinal.isNotEmpty) {
+                // Si no se seleccionó una existente, asumimos la primera de la lista final (puede ser la primera nueva)
+                rutaImagenPrincipal = imagenesFinal.first['ruta'] as String?;
+              }
+
+              // -----------------------------------------------------------
+              // 5. LLAMADA AL SERVICIO
+              // -----------------------------------------------------------
               try {
                 final response = await _servicio.actualizarContenidoEducativo(
-                  id: contenidoAEditar.id,
-                  titulo: _tituloController.text,
-                  descripcion: _descripcionController.text,
-                  contenido: _contenidoController.text,
-                  categoria: catSelect,
-                  tipoMaterial: materialSelect,
-                  puntosClave: puntosClaveList,
-                  etiquetas: etiquetasList,
-                  nuevasImagenes: _nuevasImagenes,
-                  idsImagenesAEliminar: _imagenesAEliminar.isNotEmpty ? _imagenesAEliminar.toList() : null,
-                  imgPrincipal: _imagenPrincipalExistente,
-                );
+                    id: contenidoAEditar.id,
+                    titulo: _tituloController.text,
+                    descripcion: _descripcionController.text,
+                    contenido: _contenidoController.text,
+                    categoria: catSelect,
+                    tipoMaterial: materialSelect,
+                    puntosClave: puntosClaveList,
+                    etiquetas: etiquetasList,
+
+                    // 🆕 IMÁGENES A AÑADIR (JSON String)
+                    imagenesAnadidasPreSubidas: nuevasImagenesCloudinary.isNotEmpty
+                ? json.encode(nuevasImagenesCloudinary.map((img) => img.toJson()).toList())
+                  : null,
+
+              // 🆕 IDs A ELIMINAR (List<String>)
+              idsImagenesAEliminar: _imagenesAEliminar.isNotEmpty ? _imagenesAEliminar.toList() : null,
+
+              // 🆕 RUTA PRINCIPAL (String)
+              imgPrincipalRuta: rutaImagenPrincipal,
+              );
 
                 if (response['statusCode'] == 200) {
                   Navigator.of(dialogContext).pop();

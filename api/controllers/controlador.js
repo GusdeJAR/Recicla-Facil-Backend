@@ -415,7 +415,8 @@ exports.eliminarQueja = async (req, res) => {
 exports.crearContenidoEducativo = async (req, res) => {
     // Array para almacenar los Public IDs en caso de fallo posterior
     let uploadedPublicIds = [];
-    
+    let imagenesProcesadas = [];
+    let uploadResults = [];
     try {
         const {
             titulo,
@@ -429,7 +430,8 @@ exports.crearContenidoEducativo = async (req, res) => {
             etiquetas,
             publicado,
             // Recibimos el índice de la imagen que será la principal
-            img_principal 
+            img_principal,
+            imagenes_pre_subidas, 
         } = req.body;
 
         // Validaciones (se mantienen igual)
@@ -437,10 +439,8 @@ exports.crearContenidoEducativo = async (req, res) => {
             return res.status(400).json({ mensaje: 'Faltan campos obligatorios.' });
         }
         
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ mensaje: 'Se requiere al menos una imagen.' });
-        }
-
+        
+       if (req.files && req.files.length > 0) {
         // =======================================================
         // 🚀 CLOUDINARY: SUBIDA DE MÚLTIPLES ARCHIVOS
         // =======================================================
@@ -474,6 +474,42 @@ exports.crearContenidoEducativo = async (req, res) => {
                 es_principal: esPrincipal 
             };
         });
+
+        } else if (imagenes_pre_subidas) {
+            // ----------------------------------------------------
+            // B. SCENARIO MÓVIL (URLs y IDs pre-subidas)
+            // ----------------------------------------------------
+            
+            try {
+                // Parsear el array JSON que contiene las URLs y IDs
+                const preSubidas = JSON.parse(imagenes_pre_subidas);
+                
+                if (!Array.isArray(preSubidas) || preSubidas.length === 0) {
+                    throw new Error("El formato de las imágenes pre-subidas es inválido o está vacío.");
+                }
+                
+                // Mapear los datos pre-subidos al formato de la BD
+                imagenesProcesadas = preSubidas.map((item, index) => {
+                    const esPrincipal = parseInt(img_principal, 10) === index;
+                    return {
+                        ruta: item.ruta,          // URL pre-subida
+                        public_id: item.public_id, // ID pre-subido
+                        pie_de_imagen: item.pie_de_imagen || `Imagen de ${titulo}`,
+                        es_principal: esPrincipal 
+                    };
+                });
+                
+                // Guardamos los IDs por si la BD falla
+                uploadedPublicIds = imagenesProcesadas.map(img => img.public_id);
+
+            } catch (parseError) {
+                 return res.status(400).json({ mensaje: 'Error al procesar las imágenes pre-subidas (JSON inválido).' });
+            }
+            
+        } else {
+             // Si no hay archivos web ni datos pre-subidos
+             return res.status(400).json({ mensaje: 'Se requiere al menos una imagen (subida directa o pre-subida).' });
+        }
 
         // ... Tu lógica de parseo de arrays se mantiene
         const nuevoContenido = new modelos.ContenidoEducativo({
@@ -568,6 +604,10 @@ exports.obtenerContenidoPorId = async (req, res) => {
 // @route   PUT /api/contenido-educativo/:id
 // @access  Privado (Admin)
 
+// =======================================================
+// CONTROLADOR.JS: exports.actualizarContenidoEducativo
+// =======================================================
+
 exports.actualizarContenidoEducativo = async (req, res) => {
     // Array para almacenar los Public IDs de las nuevas imágenes en caso de fallo
     let newUploadedPublicIds = [];
@@ -585,7 +625,7 @@ exports.actualizarContenidoEducativo = async (req, res) => {
         // 1. CONSTRUCCIÓN DEL OBJETO DE ACTUALIZACIÓN ($set)
         const update = {};
         
-        // --- Actualización de Campos Simples ---
+        // --- Actualización de Campos Simples y Array (Se mantienen igual) ---
         if (body.titulo !== undefined) update.titulo = String(body.titulo).trim();
         if (body.descripcion !== undefined) update.descripcion = String(body.descripcion).trim();
         if (body.contenido !== undefined) update.contenido = body.contenido;
@@ -597,7 +637,7 @@ exports.actualizarContenidoEducativo = async (req, res) => {
              update.publicado = body.publicado === 'true' || body.publicado === true;
         }
 
-        // --- Actualización de Campos Array (Parseo de JSON) ---
+        // Actualización de Campos Array (Parseo de JSON)
         if (body.puntos_clave !== undefined) update.puntos_clave = JSON.parse(body.puntos_clave || '[]');
         if (body.acciones_correctas !== undefined) update.acciones_correctas = JSON.parse(body.acciones_correctas || '[]');
         if (body.acciones_incorrectas !== undefined) update.acciones_incorrectas = JSON.parse(body.acciones_incorrectas || '[]');
@@ -608,9 +648,7 @@ exports.actualizarContenidoEducativo = async (req, res) => {
 
         // ========== 2. MANEJO DE IMÁGENES CON CLOUDINARY - LÓGICA DE SUSTITUCIÓN ==========
         
-        // Inicializamos con las imágenes existentes. Esto se usa para:
-        // 1. La lógica de eliminación parcial (si no hay archivos nuevos).
-        // 2. Obtener los IDs de las imágenes antiguas para la limpieza.
+        // Inicializamos con las imágenes existentes.
         let imagenesFinal = [...contenidoExistente.imagenes]; 
 
         // --- 2.1. Borrar imágenes marcadas para eliminación (Cloudinary) ---
@@ -623,13 +661,19 @@ exports.actualizarContenidoEducativo = async (req, res) => {
                  } catch (cloudError) {
                      console.error('Error al intentar eliminar imágenes de Cloudinary:', cloudError);
                  }
-                 // Filtrar las que se eliminarán si es una actualización parcial
+                 // Filtrar las que se eliminarán del array local
                  imagenesFinal = imagenesFinal.filter(img => !idsParaBorrar.includes(img.public_id));
              }
         }
         
-        // --- 2.2. Sustitución/Agregar nuevas imágenes (Subida a Cloudinary) ---
+        // --- 2.2. SUSTITUCIÓN/AGREGAR NUEVAS IMÁGENES (Subida a Cloudinary) ---
+        
+        let nuevasImagenes = [];
+        
         if (req.files && req.files.length > 0) {
+            // ----------------------------------------------------
+            // A. SCENARIO WEB: Subida de nuevos archivos (Multer)
+            // ----------------------------------------------------
             
             // 🚀 CLOUDINARY: SUBIDA DE NUEVOS ARCHIVOS
             const uploadPromises = req.files.map(file => {
@@ -642,44 +686,63 @@ exports.actualizarContenidoEducativo = async (req, res) => {
             });
 
             const uploadResults = await Promise.all(uploadPromises);
-            newUploadedPublicIds = uploadResults.map(result => result.public_id);
+            newUploadedPublicIds = uploadResults.map(result => result.public_id); // IDs para limpieza
 
-            const nuevasImagenes = uploadResults.map(result => ({
+            nuevasImagenes = uploadResults.map(result => ({
                 ruta: result.secure_url,
                 public_id: result.public_id,
                 pie_de_imagen: `Imagen de ${body.titulo || contenidoExistente.titulo}`,
                 es_principal: false 
             }));
             
-            // =========================================================================
-            // LÓGICA DE SUSTITUCIÓN COMPLETA (si hay nuevos archivos):
-            
-            // 1. Eliminar de Cloudinary todas las imágenes antiguas que quedaron en `imagenesFinal` 
-            //    (porque no se incluyeron en ids_imagenes_a_eliminar).
+            // Si el cliente web envió archivos, generalmente quiere SUSTITUIR el contenido existente.
+            // Por lo tanto, borramos las imágenes antiguas que quedaron en imagenesFinal
             const idsRetenidosParaBorrar = imagenesFinal.map(img => img.public_id);
             if(idsRetenidosParaBorrar.length > 0) {
-                try {
-                    await cloudinary.api.delete_resources(idsRetenidosParaBorrar);
-                } catch(err) {
-                     console.error('Advertencia: No se pudieron eliminar las imágenes antiguas no deseadas:', err);
-                }
+                 try {
+                     await cloudinary.api.delete_resources(idsRetenidosParaBorrar);
+                 } catch(err) {
+                      console.error('Advertencia: No se pudieron eliminar las imágenes antiguas no deseadas:', err);
+                 }
             }
             
-            // 2. SUSTITUCIÓN: Reemplazar el array completo con solo las imágenes nuevas.
+            // Sustitución: Reemplazar el array completo con solo las nuevas imágenes.
             imagenesFinal = nuevasImagenes; 
-            
-            // =========================================================================
 
-        } else if (body.imagenes_a_retener) { 
-             // Opcional: Si no hay archivos nuevos, pero el cliente envía una lista JSON de las URLs a mantener,
-             // asumimos que quiere borrar las viejas que no estén en esa lista y las que marcó para eliminar.
-             imagenesFinal = JSON.parse(body.imagenes_a_retener);
-        }
+        } else if (body.imagenes_a_agregar_pre_subidas) {
+            // ----------------------------------------------------
+            // B. SCENARIO MÓVIL: Recepción de datos pre-subidos (URLs/IDs)
+            // ----------------------------------------------------
+            
+            try {
+                // Espera un string JSON: [{ruta: 'url', public_id: 'id', pie_de_imagen: '...'}, ...]
+                const preSubidas = JSON.parse(body.imagenes_a_agregar_pre_subidas);
+                
+                nuevasImagenes = preSubidas.map(item => ({
+                    ruta: item.ruta,
+                    public_id: item.public_id,
+                    pie_de_imagen: item.pie_de_imagen || `Imagen de ${body.titulo || contenidoExistente.titulo}`,
+                    es_principal: false 
+                }));
+                
+                // Guardamos los IDs para la limpieza de emergencia
+                newUploadedPublicIds = nuevasImagenes.map(img => img.public_id);
+                
+                // 💡 Aquí solo se AÑADEN las nuevas imágenes a las retenidas.
+                imagenesFinal = [...imagenesFinal, ...nuevasImagenes];
+
+            } catch (parseError) {
+                 throw new Error("Error al procesar el JSON de imágenes pre-subidas para agregar.");
+            }
+            
+        } 
         
-        // --- 2.3. Actualizar la imagen principal (si se especifica) ---
+        // --- 2.3. Reorganizar la imagen principal (si se especifica) ---
+        // Este paso DEBE hacerse DESPUÉS de haber agregado todas las imágenes nuevas.
         if (body.img_principal_ruta !== undefined) {
              const rutaPrincipal = body.img_principal_ruta;
              imagenesFinal.forEach(img => {
+                 // Setea 'true' solo si la ruta coincide con la principal
                  img.es_principal = (img.ruta === rutaPrincipal);
              });
         }
