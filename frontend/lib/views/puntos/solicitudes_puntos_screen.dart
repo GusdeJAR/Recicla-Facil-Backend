@@ -645,6 +645,9 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
         _buildTextField(
           controller: _calleController,
           label: 'Calle',
+          onChanged: (text) {
+            setState(() {});
+          },
           hintText: 'Ej: Avenida México',
           validator: (value) => value!.isEmpty ? 'Ingresa la calle' : null,
         ),
@@ -656,6 +659,9 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
               child: _buildTextField(
                 controller: _numeroController,
                 label: 'Número',
+                onChanged: (text) {
+                  setState(() {});
+                },
                 hintText: 'Ej: 123',
                 keyboardType: TextInputType.text,
                 validator: (value) => value!.isEmpty ? 'Ingresa el número' : null,
@@ -667,6 +673,9 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
               child: _buildTextField(
                 controller: _coloniaController,
                 label: 'Colonia',
+                onChanged: (text) {
+                  setState(() {});
+                },
                 hintText: 'Ej: Centro',
                 validator: (value) => value!.isEmpty ? 'Ingresa la colonia' : null,
               ),
@@ -767,7 +776,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                       Icon(Icons.check_circle, color: Colors.green, size: 20),
                       SizedBox(width: 8),
                       Text(
-                        'Dirección geocodificada correctamente',
+                        'Dirección geocodificada',
                         style: TextStyle(
                           color: Colors.green[700],
                           fontWeight: FontWeight.w500,
@@ -1060,8 +1069,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
     );
 
     try {
-      // Pasar la solicitud con los datos de autenticación del usuario
-      final success = await _solicitudesService.crearSolicitud(
+      // CAMBIO CLAVE: Esperar ServiceResponse en lugar de bool
+      final response = await _solicitudesService.crearSolicitud(
         solicitud,
         ubicacion: _ubicacionPreview != null ? {
           'latitud': _ubicacionPreview!.latitud,
@@ -1070,28 +1079,25 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
         userName: authProvider.userName!,
         isAdmin: authProvider.isAdmin,
       );
-      
-      if (success) {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-        // Notifica al provider del usuario (como ya lo tienes)
-        Provider.of<SolicitudesProvider>(context, listen: false)
-            .cargarSolicitudesUsuario(authProvider.userName!, authProvider.isAdmin);
-
-        // --- ¡LA PIEZA CLAVE! Notifica también al provider del admin ---
-        Provider.of<AdminSolicitudesProvider>(context, listen: false)
-            .cargarSolicitudesPendientes(authProvider.userName!, authProvider.isAdmin);
-
-        Navigator.pop(context, true); // Regresar indicando éxito
+      // CAMBIO CLAVE: Verificar response.success
+      if (response.success) {
+        // ... (código de éxito) ...
+        Navigator.pop(context, true);
       } else {
-        throw Exception('Error al enviar la solicitud');
+        // Usamos el mensaje de error del ServiceResponse
+        throw Exception(response.errorMessage ?? 'Error desconocido al enviar la solicitud');
       }
     } catch (e) {
+      // Mostrar el mensaje detallado, quitando el prefijo "Exception: " si existe
+      String errorMsg = e.toString().replaceAll('Exception: ', '');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error al enviar la solicitud: $e'),
+          // Ahora $errorMsg contendrá el detalle del servidor o de la red.
+          content: Text('❌ Error al enviar la solicitud: $errorMsg'),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 4),
+          duration: Duration(seconds: 5),
         ),
       );
     } finally {

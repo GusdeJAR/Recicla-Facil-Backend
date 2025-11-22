@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:rf_sprint1/models/solicitud_punto.dart';
 
+import '../service_response.dart';
+
 class SolicitudesPuntosService {
-  String apiBaseUrl = 'https://recicla-facil-backend.vercel.app/';
+  String apiBaseUrl = 'https://recicla-facil-backend.vercel.app';
 
   // Método para obtener los headers con autenticación
   Map<String, String> _getHeaders(String? userName, bool isAdmin) => {
@@ -19,27 +21,46 @@ class SolicitudesPuntosService {
   List<String> get tiposMaterialDisponibles => ['Todos', 'Aluminio', 'Cartón', 'Papel', 'PET', 'Vidrio'];
 
   // Crear una nueva solicitud de punto de reciclaje 
-  Future<bool> crearSolicitud(SolicitudPunto solicitud, {Map<String, dynamic>? ubicacion, required String userName, bool isAdmin = false}) async {
+  Future<ServiceResponse> crearSolicitud(SolicitudPunto solicitud, {Map<String, dynamic>? ubicacion, required String userName, bool isAdmin = false}) async {
     try {
       final bodyMap = solicitud.toJson();
       if (ubicacion != null) {
         bodyMap['ubicacion'] = ubicacion;
       }
+
+      // 1. Ejecutar la solicitud HTTP
       final response = await http.post(
         Uri.parse('$apiBaseUrl/api/solicitudes-puntos'),
         headers: _getHeaders(userName, isAdmin),
         body: jsonEncode(bodyMap),
       );
 
+      // 2. Manejar la respuesta del servidor
       if (response.statusCode == 201) {
-        return true;
+        return ServiceResponse(true); // Éxito
       } else {
+        // 3. FALLO DEL SERVIDOR (Validación, Lógica, etc.)
         print('Error al crear solicitud: ${response.statusCode} - ${response.body}');
-        return false;
+
+        // Intentamos extraer el mensaje de error del cuerpo de la respuesta del servidor
+        String errorDetail = 'Error del servidor: Código ${response.statusCode}';
+
+        try {
+          final errorJson = jsonDecode(response.body);
+          // Si el servidor envía un campo 'message' o 'error', lo usamos.
+          errorDetail = errorJson['message'] ?? errorJson['error'] ?? errorDetail;
+        } catch (_) {
+          // Si el cuerpo no es JSON o no tiene campos conocidos, usamos el cuerpo completo.
+          errorDetail = response.body.isNotEmpty ? response.body : errorDetail;
+        }
+
+        return ServiceResponse(false, errorMessage: errorDetail);
       }
     } catch (e) {
+      // 4. EXCEPCIÓN DE CONEXIÓN/RED
       print('Excepción en crearSolicitud: $e');
-      return false;
+      // Devolvemos el mensaje exacto de la excepción (e.g., Timeout, DNS, Network)
+      return ServiceResponse(false, errorMessage: 'Error de Conexión o Red: ${e.toString()}');
     }
   }
 
