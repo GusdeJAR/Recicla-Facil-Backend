@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/usuario_service.dart';
-import 'package:rf_sprint1/views/forgot_password_screen.dart';
+// Import solo para web
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,6 +57,16 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _descargarAplicacion() {
+    // URL directa para descarga del APK desde Google Drive
+    final apkUrl = 'https://drive.google.com/uc?export=download&id=1AlOyzI_qJ6bTqMyeh5C_HPp0AiJKjewA';
+    
+    // Crear un elemento anchor temporal para forzar la descarga
+    final anchor = html.AnchorElement(href: apkUrl)
+      ..setAttribute('download', 'ReciclaFacil.apk')
+      ..click();
   }
 
   @override
@@ -198,17 +210,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       
                       SizedBox(height: 20),
+                      
+                      // Botón para descargar Aplicacion solo en web
+                      if (identical(0, 0.0)) // kIsWeb
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _descargarAplicacion,
+                            icon: Icon(Icons.download),
+                            label: Text('Descargar Aplicación para Android'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                      
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-
                           SizedBox(width: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
-                              );
+                              // Navigator.pushNamed(context, '/forgot-password');
                             },
                             child: Text(
                               'Olvidé mi contraseña',
@@ -221,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(height: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushNamed(context, '/register');
+                              Navigator.pushReplacementNamed(context, '/register');
                             },
                             child:  Text(
                               '¿No tienes una cuenta? Regístrate',
