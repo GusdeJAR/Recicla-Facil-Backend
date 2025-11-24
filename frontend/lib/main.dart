@@ -107,15 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCurrentPage() {
     switch (_currentIndex) {
       case 0:
-        return ProfileScreen();
-      case 1:
-        return QuejasTabsScreen();
-      case 2:
-        return ContenidoScreen();
-      case 3:
         return PuntosTabsScreen();
-      default:
+      case 1:
+        return ContenidoScreen();
+      case 2:
+        return QuejasTabsScreen();
+      case 3:
         return ProfileScreen();
+      default:
+        return PuntosTabsScreen();
     }
   }
 
