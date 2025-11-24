@@ -98624,18 +98624,18 @@ G(a){var s,r,q,p,o,n,m,l=this,k=null,j=A.p(l.e[l.d],k,k,k,k,k,k),i=t.p
 j=A.nS(A.b([A.e9(k,k,k,A.ag(B.pL,k,k,k),k,k,new A.azB(l,a),k,k,k,"Cerrar sesi\xf3n")],i),B.p,4,j)
 s=A.p("Men\xfa de navegaci\xf3n",k,k,k,A.ac(k,k,B.f,k,k,k,k,k,k,k,k,24,k,k,k,k,k,!0,k,k,k,k,k,k,k,k),k,k)
 r=A.ag(B.fi,k,k,k)
-q=A.p("Usuario",k,k,k,k,k,k)
+q=A.p("Puntos de reciclaje",k,k,k,k,k,k)
 p=l.d
 o=B.d.aw(25.5)
 q=A.mC(!1,k,k,k,!0,k,k,!0,k,r,k,new A.azC(l),p===0,B.p,A.ap(o,B.p.u()>>>16&255,B.p.u()>>>8&255,B.p.u()&255),k,k,k,q,k,k)
 p=A.ag(B.Jo,k,k,k)
-r=A.p("Quejas y sugerencias",k,k,k,k,k,k)
+r=A.p("Contenido educativo",k,k,k,k,k,k)
 r=A.mC(!1,k,k,k,!0,k,k,!0,k,p,k,new A.azD(l),l.d===1,B.p,A.ap(o,B.p.u()>>>16&255,B.p.u()>>>8&255,B.p.u()&255),k,k,k,r,k,k)
 p=A.ag(B.J6,k,k,k)
-n=A.p("Contenido educativo",k,k,k,k,k,k)
+n=A.p("Quejas y sugerencias",k,k,k,k,k,k)
 n=A.mC(!1,k,k,k,!0,k,k,!0,k,p,k,new A.azE(l),l.d===2,B.p,A.ap(o,B.p.u()>>>16&255,B.p.u()>>>8&255,B.p.u()&255),k,k,k,n,k,k)
 p=A.ag(B.Ji,k,k,k)
-m=A.p("Puntos de reciclaje",k,k,k,k,k,k)
+m=A.p("Usuario",k,k,k,k,k,k)
 i=A.afv(A.b([new A.Pb(new A.bY(B.p,k,k,k,k,k,B.U),s,k),q,r,n,A.mC(!1,k,k,k,!0,k,k,!0,k,p,k,new A.azF(l),l.d===3,B.p,A.ap(o,B.p.u()>>>16&255,B.p.u()>>>8&255,B.p.u()&255),k,k,k,m,k,k)],i),B.af,k,!1)
 return A.eP(j,k,l.a9L(),k,new A.P7(i,k),k,k)},
 abk(a){A.hF(!1,new A.azy(this,a),a,t.z)}}
