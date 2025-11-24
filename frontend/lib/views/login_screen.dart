@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/usuario_service.dart';
 // Import solo para web
-// ignore: avoid_web_libraries_in_flutter
+//ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 class LoginScreen extends StatefulWidget {
@@ -233,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(width: 20),
                           TextButton(
                             onPressed: () {
-                              // Navigator.pushNamed(context, '/forgot-password');
+                               Navigator.pushNamed(context, '/forgot-password');
                             },
                             child: Text(
                               'Olvidé mi contraseña',

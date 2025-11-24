@@ -83,10 +83,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   final List<String> _pageTitles = [
-    "Usuario",
-    "Quejas y sugerencias",
-    'Contenido educativo',
     'Puntos de reciclaje',
+    'Contenido educativo',
+    "Quejas y sugerencias",
+    "Usuario",
   ];
 
   void _onItemTapped(int index) {
