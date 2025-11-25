@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/usuario_service.dart';
-// Import solo para web
-//ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:rf_sprint1/views/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -59,37 +57,27 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _descargarAplicacion() {
-    // URL directa para descarga del APK desde Google Drive
-    final apkUrl = 'https://drive.google.com/uc?export=download&id=1AlOyzI_qJ6bTqMyeh5C_HPp0AiJKjewA';
-    
-    // Crear un elemento anchor temporal para forzar la descarga
-    final anchor = html.AnchorElement(href: apkUrl)
-      ..setAttribute('download', 'ReciclaFacil.apk')
-      ..click();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-          body: Stack(
-          children: [
-            // Fondo de pantalla
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/backgrounds/fondo_login.png',
-                fit: BoxFit.cover,
-              ),
+      body: Stack(
+        children: [
+          // Fondo de pantalla
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/fondo_login.png',
+              fit: BoxFit.cover,
             ),
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.3),
-              ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
             ),
-            
-            Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 420),
+          ),
+
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 420),
               child: SingleChildScrollView(
                 padding:  EdgeInsets.symmetric(horizontal: 24.0),
                 child: Form(
@@ -97,8 +85,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                       SizedBox(height: 70),
-                      
+                      SizedBox(height: 70),
+
                       SizedBox(
                         width: 393,
                         height: 104,
@@ -107,10 +95,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           fit: BoxFit.contain,
                         ),
                       ),
-                      
-                       SizedBox(height: 16),
-                      
-                       Text(
+
+                      SizedBox(height: 16),
+
+                      Text(
                         'Inicio de sesión',
                         style: TextStyle(
                           fontSize: 18,
@@ -118,9 +106,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontWeight: FontWeight.w300,
                         ),
                       ),
-                      
-                       SizedBox(height: 50),
-                      
+
+                      SizedBox(height: 50),
+
                       // Campo de nombre
                       Container(
                         decoration: BoxDecoration(
@@ -145,9 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                       ),
-                      
+
                       SizedBox(height: 20),
-                      
+
                       // Campo de contraseña
                       Container(
                         decoration: BoxDecoration(
@@ -173,9 +161,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                       ),
-                      
+
                       SizedBox(height: 30),
-                      
+
                       // Botón Ingresar
                       SizedBox(
                         width: double.infinity,
@@ -192,48 +180,35 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           child: _isLoading
                               ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
                               : Text(
-                                  'Ingresar',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      
-                      SizedBox(height: 20),
-                      
-                      // Botón para descargar Aplicacion solo en web
-                      if (identical(0, 0.0)) // kIsWeb
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _descargarAplicacion,
-                            icon: Icon(Icons.download),
-                            label: Text('Descargar Aplicación para Android'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: EdgeInsets.symmetric(vertical: 16),
+                            'Ingresar',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                      
+                      ),
+
+                      SizedBox(height: 20),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+
                           SizedBox(width: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushReplacementNamed(context, '/forgot-password');                               Navigator.pushNamed(context, '/forgot-password');
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
+                              );
                             },
                             child: Text(
                               'Olvidé mi contraseña',
@@ -262,10 +237,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 
