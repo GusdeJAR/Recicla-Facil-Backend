@@ -3,6 +3,8 @@ const cloudinary = require('../config/cloudinary');
 const path = require('path');
 const { URL } = require('url'); 
 const { enviarCorreo } = require('../services/mailService');
+const { geocodificarDireccion, obtenerDireccionDesdeCoordenas, TEPIC_BBOX, estaDentroDeBBox, normalizeTexto } = require('../services/geocoding');
+
 // ===================================================================
 // @desc    Recuperar contraseña por email y enviarla por correo
 // @route   POST /api/usuarios/recuperar-password
@@ -39,24 +41,20 @@ exports.crearUsuario = async (req, res) => {
         // 1. Verificar si el correo ya existe en la base de datos
         const nombreExistente = await modelos.Usuario.findOne({ nombre: nombre.trim() });
         if (nombreExistente) {
-                    // Usa el código 409 Conflict: El recurso no se puede crear porque ya existe.
                     return res.status(409).json({ mensaje: "El nombre de usuario ya está registrado." });
                 }
 
         const emailExistente = await modelos.Usuario.findOne({ email: email.trim() });
 
         if (emailExistente) {
-            // Usa el código 409 Conflict: El recurso no se puede crear porque ya existe.
             return res.status(409).json({ mensaje: "El correo electrónico ya está registrado." });
         }
-
-        // (Aquí va tu lógica para hashear la contraseña con bcrypt, si la usas)
 
         // Limpia y crea el nuevo usuario
         const nuevoUsuario = await modelos.Usuario.create({
             nombre: nombre.trim(),
             email: email.trim(),
-            password: password, // O la contraseña hasheada
+            password: password,
         });
 
         // 2. Respuesta de éxito: Código 201 Created
@@ -67,7 +65,6 @@ exports.crearUsuario = async (req, res) => {
 
     } catch (error) {
         console.error("Error en crearUsuario:", error);
-        // 3. Respuesta de error del servidor: Código 500
         res.status(500).json({ mensaje: 'Error interno al crear el usuario.' });
     }
 }
@@ -83,18 +80,14 @@ exports.obtenerUsuarios = async (req, res) => {
 
 exports.obtenerUsuarioPorEmail = async (req, res) => {
     try {
-        // 1. Obtiene el email de los parámetros de la URL
         const email = req.params.email;
 
-        // 2. Busca al usuario en la base de datos
         const usuario = await modelos.Usuario.findOne({ email: email });
 
-        // 3. Si no se encuentra el usuario, envía un error 404
         if (!usuario) {
             return res.status(404).json({ mensaje: 'Usuario no encontrado.' });
         }
 
-        // 4. Si se encuentra, envía los datos (¡SIN LA CONTRASEÑA!)
         const usuarioParaCliente = {
             nombre: usuario.nombre,
             email: usuario.email,
@@ -110,35 +103,28 @@ exports.obtenerUsuarioPorEmail = async (req, res) => {
     }
 };
 
-
 // ===================================================================
 // @desc    Cambiar la contraseña de un usuario
 // @route   POST /api/usuarios/cambiar-password
-// @access  Privado (debería estar protegido)
+// @access  Privado
 // ===================================================================
 exports.cambiarPassword = async (req, res) => {
     try {
-        // 1. Obtiene el email y la nueva contraseña del cuerpo de la petición
         const { email, nuevaPassword } = req.body;
 
-        // 2. Valida que los datos necesarios fueron enviados
         if (!email || !nuevaPassword) {
             return res.status(400).json({ mensaje: 'Faltan datos requeridos (email o nuevaPassword).' });
         }
 
-        // 3. Busca al usuario por su email
         const usuario = await modelos.Usuario.findOne({ email: email });
 
         if (!usuario) {
             return res.status(404).json({ mensaje: 'Usuario no encontrado.' });
         }
 
-        // 4. Actualiza la contraseña del usuario encontrado
-        // En un proyecto real, la 'nuevaPassword' debería ser hasheada antes de guardarla.
         usuario.password = nuevaPassword;
         await usuario.save();
 
-        // 5. Envía una respuesta de éxito
         res.status(200).json({ mensaje: 'Contraseña actualizada exitosamente.' });
 
     } catch (error) {
@@ -147,56 +133,52 @@ exports.cambiarPassword = async (req, res) => {
     }
 };
 
-    exports.loginUsuario = async (req, res) => {
-        console.log('API: /usuarios/login alcanzada con método:', req.method);
-        console.log('API: Body recibido:', req.body);
+exports.loginUsuario = async (req, res) => {
+    console.log('API: /usuarios/login alcanzada con método:', req.method);
+    console.log('API: Body recibido:', req.body);
 
-        try {
-            const { nombre, password } = req.body;
+    try {
+        const { nombre, password } = req.body;
 
-            if (!nombre || !password) {
-                console.log('API ERROR: Datos de entrada incompletos.');
-                return res.status(400).json({ mensaje: 'Nombre y contraseña son requeridos' });
-            }
-
-            console.log(`API: Buscando usuario '${nombre}' en la base de datos...`);
-            // Usamos .exec() para una promesa más robusta
-            const usuario = await modelos.Usuario.findOne({ nombre: nombre }).exec();
-
-            if (!usuario) {
-                console.log(`API: Usuario '${nombre}' no encontrado.`);
-                return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
-            }
-
-            console.log(`API: Usuario '${nombre}' encontrado. Verificando contraseña.`);
-            if (password !== usuario.password) {
-                console.log('API ERROR: Contraseña incorrecta.');
-                return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
-            }
-
-            console.log('API: Login exitoso. Enviando datos del usuario.');
-            const usuarioParaCliente = {
-                _id: usuario._id,
-                nombre: usuario.nombre,
-                email: usuario.email,
-                admin: usuario.admin
-            };
-            
-            return res.status(200).json({ 
-                mensaje: 'Inicio de sesión exitoso', 
-                usuario: usuarioParaCliente 
-            });
-
-        } catch (error) {
-            console.error("API CRITICAL ERROR en login:", error); // Esto nos mostrará el error de la BD si lo hay
-            return res.status(500).json({ mensaje: 'Error interno del servidor' });
+        if (!nombre || !password) {
+            console.log('API ERROR: Datos de entrada incompletos.');
+            return res.status(400).json({ mensaje: 'Nombre y contraseña son requeridos' });
         }
-    };
-    
-exports.actualizarUsuario = async (req, res) => {
 
-    // Lógica para actualizar un usuario
-    // Aceptar email por body o por parámetro de ruta (req.params.email)
+        console.log(`API: Buscando usuario '${nombre}' en la base de datos...`);
+        const usuario = await modelos.Usuario.findOne({ nombre: nombre }).exec();
+
+        if (!usuario) {
+            console.log(`API: Usuario '${nombre}' no encontrado.`);
+            return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
+        }
+
+        console.log(`API: Usuario '${nombre}' encontrado. Verificando contraseña.`);
+        if (password !== usuario.password) {
+            console.log('API ERROR: Contraseña incorrecta.');
+            return res.status(401).json({ mensaje: 'Usuario o contraseña incorrectos' });
+        }
+
+        console.log('API: Login exitoso. Enviando datos del usuario.');
+        const usuarioParaCliente = {
+            _id: usuario._id,
+            nombre: usuario.nombre,
+            email: usuario.email,
+            admin: usuario.admin
+        };
+        
+        return res.status(200).json({ 
+            mensaje: 'Inicio de sesión exitoso', 
+            usuario: usuarioParaCliente 
+        });
+
+    } catch (error) {
+        console.error("API CRITICAL ERROR en login:", error);
+        return res.status(500).json({ mensaje: 'Error interno del servidor' });
+    }
+};
+
+exports.actualizarUsuario = async (req, res) => {
     const { nombre, password, admin, correo } = req.body;
     const email = req.params && req.params.email ? req.params.email : req.body.email;
     try{
@@ -204,12 +186,11 @@ exports.actualizarUsuario = async (req, res) => {
             return res.status(400).json({ mensaje: 'El email es requerido para actualizar el usuario' });
         }
 
-        // Construir objeto de actualización sólo con campos presentes
         const update = {};
         if(nombre !== undefined) update.nombre = nombre;
         if(password !== undefined) update.password = password;
         if(admin !== undefined) update.admin = admin;
-        // Buscar por email y actualizar
+
         const usuarioActualizado = await modelos.Usuario.findOneAndUpdate({ email }, update, { new: true });
 
         if(!usuarioActualizado){
@@ -220,10 +201,9 @@ exports.actualizarUsuario = async (req, res) => {
     }catch(error){
         res.status(500).json({ mensaje: 'Error al actualizar el usuario', error: error.message });
     }
+};
 
-}  
 exports.eliminarUsuario = async (req, res) => {
-    // Lógica para eliminar un usuario
     const email=req.params.email;
     try{
         if(!email){
@@ -240,16 +220,13 @@ exports.eliminarUsuario = async (req, res) => {
 }
 
 // =========================================================================
-// @desc    Crear una nueva queja (desde un formulario público)
-// @route   POST /api/quejas
-// @access  Público
+// CONTROLADORES DE QUEJAS
 // =========================================================================
+
 exports.crearQueja = async (req, res) => {
     try {
-        // --- ¡CAMBIO CLAVE! Leemos 'correo' y 'mensaje' del cuerpo ---
         const { correo, categoria, mensaje } = req.body;
 
-        // Validamos que los datos necesarios hayan llegado
         if (!correo) {
             return res.status(400).json({ mensaje: 'El correo es obligatorio.' });
         }
@@ -262,17 +239,14 @@ exports.crearQueja = async (req, res) => {
             return res.status(400).json({ mensaje: 'El mensaje es obligatorio.' });
         }
 
-        // Creamos el nuevo documento 'Queja' en la base de datos
         const nuevaQueja = new modelos.Queja({
             correo: correo, 
             categoria: categoria,
             mensaje: mensaje
         });
 
-        // Guardamos la nueva queja en la base de datos
         await nuevaQueja.save();
 
-        // Enviamos una respuesta de éxito (201 Created)
         res.status(201).json({
             mensaje: 'Queja enviada con éxito.',
             queja: nuevaQueja
@@ -284,19 +258,10 @@ exports.crearQueja = async (req, res) => {
     }
 };
 
-// =========================================================================
-// @desc    Obtener todas las quejas del usuario que está logueado
-// @route   GET /api/quejas/mis-quejas
-// @access  Privado (solo para el usuario dueño de las quejas)
-// =========================================================================
 exports.obtenerMisQuejas = async (req, res) => {
     try {
         const correoUsuario = req.params.email;
-
-        // Buscamos todas las quejas que coincidan con el correo del usuario
-        // y las ordenamos de la más reciente a la más antigua.
         const quejas = await modelos.Queja.find({ correo : correoUsuario }).sort({ fechaCreacion: -1 });
-
         res.status(200).json(quejas);
 
     } catch (error) {
@@ -305,17 +270,10 @@ exports.obtenerMisQuejas = async (req, res) => {
     }
 };
 
-// =========================================================================
-// @desc    Obtener todas las quejas pendientes (para Administradores)
-// @route   GET /api/quejas/pendientes
-// @access  Privado (solo para Administradores)
-// =========================================================================
 exports.obtenerQuejasPendientes = async (req, res) => {
     try {
-        // Buscamos todas las quejas con estado 'Pendiente'
-        // 'populate' es muy útil aquí: reemplaza el ID del usuario con los datos del usuario (nombre y email).
         const quejasPendientes = await modelos.Queja.find({ estado: 'Pendiente' })
-            .sort({ fechaCreacion: 1 }); // Ordenamos de la más antigua a la más nueva
+            .sort({ fechaCreacion: 1 });
 
         res.status(200).json(quejasPendientes);
 
@@ -346,7 +304,6 @@ exports.obtenerQuejasAtendidas = async (req, res) => {
 
 exports.obtenerQuejasPorCategoria = async (req, res) => {
     try {
-      
         const categoria = decodeURIComponent(req.params.categoria);
         if (!categoria) {
             return res.status(400).json({ mensaje: 'La categoría es requerida en la URL.' });
@@ -356,36 +313,29 @@ exports.obtenerQuejasPorCategoria = async (req, res) => {
 
         res.status(200).json(quejas);
 
-
     } catch (error) {
         console.error("Error al obtener quejas por categoría:", error);
         res.status(500).json({ mensaje: 'Error interno del servidor.' });
     }
 };
 
-// =========================================================================
-// @desc    Atender una queja (para Administradores)
-// @route   PUT /api/quejas/:id
-// @access  Privado (solo para Administradores)
-// =========================================================================
 exports.atenderQueja = async (req, res) => {
     try {
         const { respuestaAdmin } = req.body;
-        const quejaId = req.params.id; // El ID de la queja viene de la URL
+        const quejaId = req.params.id;
 
         if (!respuestaAdmin) {
             return res.status(400).json({ mensaje: 'La respuesta del administrador es obligatoria.' });
         }
 
-        // Buscamos la queja por su ID y la actualizamos
         const quejaAtendida = await modelos.Queja.findByIdAndUpdate(
             quejaId,
             {
                 estado: 'Atendida',
                 respuestaAdmin: respuestaAdmin,
-                fechaAtencion: new Date() // Guardamos la fecha actual
+                fechaAtencion: new Date()
             },
-            { new: true } // {new: true} hace que Mongoose devuelva el documento ya actualizado
+            { new: true }
         );
 
         if (!quejaAtendida) {
@@ -403,12 +353,9 @@ exports.atenderQueja = async (req, res) => {
     }
 };
 
-// @desc    Eliminar una queja
-// @route   DELETE /api/quejas/:id
 exports.eliminarQueja = async (req, res) => {
     try {
         const quejaId = req.params.id;
-
         const quejaEliminada = await modelos.Queja.findByIdAndDelete(quejaId);
 
         if (!quejaEliminada) {
@@ -420,22 +367,15 @@ exports.eliminarQueja = async (req, res) => {
     } catch (error) {
         res.status(500).json({ mensaje: 'Error del servidor al querer eliminar la queja.' });
     }
-
 };
-
 
 // =========================================================================
 // CONTROLADORES DE CONTENIDO EDUCATIVO
 // =========================================================================
 
-// @desc    Crear nuevo contenido educativo
-// @route   POST /api/contenido-educativo
-// @access  Privado (Admin)
 exports.crearContenidoEducativo = async (req, res) => {
-    // Array para almacenar los Public IDs en caso de fallo posterior
     let uploadedPublicIds = [];
     let imagenesProcesadas = [];
-    let uploadResults = [];
     try {
         const {
             titulo,
@@ -448,77 +388,55 @@ exports.crearContenidoEducativo = async (req, res) => {
             acciones_incorrectas,
             etiquetas,
             publicado,
-            // Recibimos el índice de la imagen que será la principal
             img_principal,
             imagenes_pre_subidas, 
         } = req.body;
 
-        // Validaciones (se mantienen igual)
         if (!titulo || !descripcion || !contenido || !categoria || !tipo_material) {
             return res.status(400).json({ mensaje: 'Faltan campos obligatorios.' });
         }
         
-        
-       if (req.files && req.files.length > 0) {
-        // =======================================================
-        // 🚀 CLOUDINARY: SUBIDA DE MÚLTIPLES ARCHIVOS
-        // =======================================================
-        const uploadPromises = req.files.map(file => {
-            // Convertir el buffer a Base64 Data URI
-            const b64 = Buffer.from(file.buffer).toString('base64');
-            const dataURI = `data:${file.mimetype};base64,${b64}`;
+        if (req.files && req.files.length > 0) {
+            const uploadPromises = req.files.map(file => {
+                const b64 = Buffer.from(file.buffer).toString('base64');
+                const dataURI = `data:${file.mimetype};base64,${b64}`;
 
-            return cloudinary.uploader.upload(dataURI, {
-                folder: "contenido-educativo", // Carpeta en Cloudinary
+                return cloudinary.uploader.upload(dataURI, {
+                    folder: "contenido-educativo",
+                });
             });
-        });
 
-        // Esperamos a que todas las promesas de subida se resuelvan
-        const uploadResults = await Promise.all(uploadPromises);
+            const uploadResults = await Promise.all(uploadPromises);
+            uploadedPublicIds = uploadResults.map(result => result.public_id);
 
-        // Guardamos los IDs para la limpieza de emergencia
-        uploadedPublicIds = uploadResults.map(result => result.public_id);
-        // =======================================================
-
-        // --- TRADUCCIÓN A CLOUDINARY ---
-        const imagenesProcesadas = uploadResults.map((result, index) => {
-            // El índice de la imagen principal viene del body (ej. '0')
-            const esPrincipal = parseInt(img_principal, 10) === index;
-
-            return {
-                // CAMBIO CLAVE: Usamos result.secure_url y result.public_id
-                ruta: result.secure_url,       // URL segura (https://) de Cloudinary
-                public_id: result.public_id,   // ID para poder borrarla después
-                pie_de_imagen: `Imagen de ${titulo}`,
-                es_principal: esPrincipal 
-            };
-        });
+            imagenesProcesadas = uploadResults.map((result, index) => {
+                const esPrincipal = parseInt(img_principal, 10) === index;
+                return {
+                    ruta: result.secure_url,
+                    public_id: result.public_id,
+                    pie_de_imagen: `Imagen de ${titulo}`,
+                    es_principal: esPrincipal 
+                };
+            });
 
         } else if (imagenes_pre_subidas) {
-            // ----------------------------------------------------
-            // B. SCENARIO MÓVIL (URLs y IDs pre-subidas)
-            // ----------------------------------------------------
-            
             try {
-                // Parsear el array JSON que contiene las URLs y IDs
                 const preSubidas = JSON.parse(imagenes_pre_subidas);
                 
                 if (!Array.isArray(preSubidas) || preSubidas.length === 0) {
                     throw new Error("El formato de las imágenes pre-subidas es inválido o está vacío.");
                 }
                 
-                // Mapear los datos pre-subidos al formato de la BD
                 imagenesProcesadas = preSubidas.map((item, index) => {
                     const esPrincipal = parseInt(img_principal, 10) === index;
                     return {
-                        ruta: item.ruta,          // URL pre-subida
-                        public_id: item.public_id, // ID pre-subido
+                        ruta: item.ruta,
+                        public_id: item.public_id,
                         pie_de_imagen: item.pie_de_imagen || `Imagen de ${titulo}`,
                         es_principal: esPrincipal 
                     };
                 });
                 
-                // Guardamos los IDs por si la BD falla
                 uploadedPublicIds = imagenesProcesadas.map(img => img.public_id);
 
             } catch (parseError) {
@@ -526,18 +444,16 @@ exports.crearContenidoEducativo = async (req, res) => {
             }
             
         } else {
-             // Si no hay archivos web ni datos pre-subidos
              return res.status(400).json({ mensaje: 'Se requiere al menos una imagen (subida directa o pre-subida).' });
         }
 
-        // ... Tu lógica de parseo de arrays se mantiene
         const nuevoContenido = new modelos.ContenidoEducativo({
             titulo: titulo.trim(),
             descripcion: descripcion.trim(),
             contenido: contenido,
             categoria,
             tipo_material,
-            imagenes: imagenesProcesadas, // Usamos el array procesado
+            imagenes: imagenesProcesadas,
             puntos_clave: JSON.parse(puntos_clave || '[]'),
             acciones_correctas: JSON.parse(acciones_correctas || '[]'),
             acciones_incorrectas: JSON.parse(acciones_incorrectas || '[]'),
@@ -555,10 +471,8 @@ exports.crearContenidoEducativo = async (req, res) => {
     } catch (error) {
         console.error("Error en crearContenidoEducativo:", error);
         
-        // --- LIMPIEZA DE EMERGENCIA (Ahora usa los IDs de la subida) ---
         if (uploadedPublicIds.length > 0) {
             try {
-                // Borrar los archivos que sí se subieron a Cloudinary
                 await cloudinary.api.delete_resources(uploadedPublicIds);
             } catch (cleanupError) {
                 console.error("Error al limpiar imágenes de Cloudinary después de un fallo:", cleanupError);
@@ -572,17 +486,9 @@ exports.crearContenidoEducativo = async (req, res) => {
     }
 };
 
-
-// @desc    Obtener todo el contenido educativo (con filtros opcionales)
-// @route   GET /api/contenido-educativo
-// @access  Público
 exports.obtenerContenidoEducativo = async (req, res) => {
     try {
-
         const todosLosContenidos = await modelos.ContenidoEducativo.find();
-
-        
-
         res.status(200).json({
             contenidos: todosLosContenidos
         });
@@ -596,9 +502,6 @@ exports.obtenerContenidoEducativo = async (req, res) => {
     }
 };
 
-// @desc    Obtener contenido educativo por ID
-// @route   GET /api/contenido-educativo/:id
-// @access  Público
 exports.obtenerContenidoPorId = async (req, res) => {
     try {
         const contenidoId = req.params.id;
@@ -619,21 +522,11 @@ exports.obtenerContenidoPorId = async (req, res) => {
     }
 };
 
-// @desc    Actualizar contenido educativo
-// @route   PUT /api/contenido-educativo/:id
-// @access  Privado (Admin)
-
-// =======================================================
-// CONTROLADOR.JS: exports.actualizarContenidoEducativo
-// =======================================================
-
 exports.actualizarContenidoEducativo = async (req, res) => {
-    // Array para almacenar los Public IDs de las nuevas imágenes en caso de fallo
     let newUploadedPublicIds = [];
 
     try {
         const contenidoId = req.params.id;
-        // req.body contiene todos los campos de texto/JSON serializado del formulario multipart
         const body = req.body || {}; 
 
         const contenidoExistente = await modelos.ContenidoEducativo.findById(contenidoId);
@@ -641,36 +534,27 @@ exports.actualizarContenidoEducativo = async (req, res) => {
             return res.status(404).json({ mensaje: 'Contenido educativo no encontrado.' });
         }
 
-        // 1. CONSTRUCCIÓN DEL OBJETO DE ACTUALIZACIÓN ($set)
         const update = {};
         
-        // --- Actualización de Campos Simples y Array (Se mantienen igual) ---
         if (body.titulo !== undefined) update.titulo = String(body.titulo).trim();
         if (body.descripcion !== undefined) update.descripcion = String(body.descripcion).trim();
         if (body.contenido !== undefined) update.contenido = body.contenido;
         if (body.categoria !== undefined) update.categoria = body.categoria;
         if (body.tipo_material !== undefined) update.tipo_material = body.tipo_material;
         
-        // Manejar booleano
         if (body.publicado !== undefined) {
              update.publicado = body.publicado === 'true' || body.publicado === true;
         }
 
-        // Actualización de Campos Array (Parseo de JSON)
         if (body.puntos_clave !== undefined) update.puntos_clave = JSON.parse(body.puntos_clave || '[]');
         if (body.acciones_correctas !== undefined) update.acciones_correctas = JSON.parse(body.acciones_correctas || '[]');
         if (body.acciones_incorrectas !== undefined) update.acciones_incorrectas = JSON.parse(body.acciones_incorrectas || '[]');
         if (body.etiquetas !== undefined) update.etiquetas = JSON.parse(body.etiquetas || '[]');
         
-        // Actualizar fecha de actualización
         update.fecha_actualizacion = new Date();
 
-        // ========== 2. MANEJO DE IMÁGENES CON CLOUDINARY - LÓGICA DE SUSTITUCIÓN ==========
-        
-        // Inicializamos con las imágenes existentes.
         let imagenesFinal = [...contenidoExistente.imagenes]; 
 
-        // --- 2.1. Borrar imágenes marcadas para eliminación (Cloudinary) ---
         let idsParaBorrar = [];
         if (body.ids_imagenes_a_eliminar) {
              idsParaBorrar = JSON.parse(body.ids_imagenes_a_eliminar); 
@@ -680,21 +564,13 @@ exports.actualizarContenidoEducativo = async (req, res) => {
                  } catch (cloudError) {
                      console.error('Error al intentar eliminar imágenes de Cloudinary:', cloudError);
                  }
-                 // Filtrar las que se eliminarán del array local
                  imagenesFinal = imagenesFinal.filter(img => !idsParaBorrar.includes(img.public_id));
              }
         }
         
-        // --- 2.2. SUSTITUCIÓN/AGREGAR NUEVAS IMÁGENES (Subida a Cloudinary) ---
-        
         let nuevasImagenes = [];
         
         if (req.files && req.files.length > 0) {
-            // ----------------------------------------------------
-            // A. SCENARIO WEB: Subida de nuevos archivos (Multer)
-            // ----------------------------------------------------
-            
-            // 🚀 CLOUDINARY: SUBIDA DE NUEVOS ARCHIVOS
             const uploadPromises = req.files.map(file => {
                 const b64 = Buffer.from(file.buffer).toString('base64');
                 const dataURI = `data:${file.mimetype};base64,${b64}`;
@@ -705,7 +581,7 @@ exports.actualizarContenidoEducativo = async (req, res) => {
             });
 
             const uploadResults = await Promise.all(uploadPromises);
-            newUploadedPublicIds = uploadResults.map(result => result.public_id); // IDs para limpieza
+            newUploadedPublicIds = uploadResults.map(result => result.public_id);
 
             nuevasImagenes = uploadResults.map(result => ({
                 ruta: result.secure_url,
@@ -714,8 +590,6 @@ exports.actualizarContenidoEducativo = async (req, res) => {
                 es_principal: false 
             }));
             
-            // Si el cliente web envió archivos, generalmente quiere SUSTITUIR el contenido existente.
-            // Por lo tanto, borramos las imágenes antiguas que quedaron en imagenesFinal
             const idsRetenidosParaBorrar = imagenesFinal.map(img => img.public_id);
             if(idsRetenidosParaBorrar.length > 0) {
                  try {
@@ -725,16 +599,10 @@ exports.actualizarContenidoEducativo = async (req, res) => {
                  }
             }
             
-            // Sustitución: Reemplazar el array completo con solo las nuevas imágenes.
             imagenesFinal = nuevasImagenes; 
 
         } else if (body.imagenes_a_agregar_pre_subidas) {
-            // ----------------------------------------------------
-            // B. SCENARIO MÓVIL: Recepción de datos pre-subidos (URLs/IDs)
-            // ----------------------------------------------------
-            
             try {
-                // Espera un string JSON: [{ruta: 'url', public_id: 'id', pie_de_imagen: '...'}, ...]
                 const preSubidas = JSON.parse(body.imagenes_a_agregar_pre_subidas);
                 
                 nuevasImagenes = preSubidas.map(item => ({
@@ -744,10 +612,8 @@ exports.actualizarContenidoEducativo = async (req, res) => {
                     es_principal: false 
                 }));
                 
-                // Guardamos los IDs para la limpieza de emergencia
                 newUploadedPublicIds = nuevasImagenes.map(img => img.public_id);
                 
-                // 💡 Aquí solo se AÑADEN las nuevas imágenes a las retenidas.
                 imagenesFinal = [...imagenesFinal, ...nuevasImagenes];
 
             } catch (parseError) {
@@ -756,20 +622,15 @@ exports.actualizarContenidoEducativo = async (req, res) => {
             
         } 
         
-        // --- 2.3. Reorganizar la imagen principal (si se especifica) ---
-        // Este paso DEBE hacerse DESPUÉS de haber agregado todas las imágenes nuevas.
         if (body.img_principal_ruta !== undefined) {
              const rutaPrincipal = body.img_principal_ruta;
              imagenesFinal.forEach(img => {
-                 // Setea 'true' solo si la ruta coincide con la principal
                  img.es_principal = (img.ruta === rutaPrincipal);
              });
         }
         
-        // --- 2.4. Finalizar el objeto de actualización de imágenes ---
         update.imagenes = imagenesFinal;
         
-        // 3. EJECUTAR LA ACTUALIZACIÓN EN MONGO
         const contenidoActualizado = await modelos.ContenidoEducativo.findByIdAndUpdate(
              contenidoId,
              { $set: update }, 
@@ -784,7 +645,6 @@ exports.actualizarContenidoEducativo = async (req, res) => {
     } catch (error) {
         console.error("Error en actualizarContenidoEducativo:", error);
         
-        // 4. LIMPIEZA DE EMERGENCIA: Borrar nuevas imágenes subidas si la BD falló
          if (newUploadedPublicIds.length > 0) {
              try {
                  await cloudinary.api.delete_resources(newUploadedPublicIds);
@@ -799,54 +659,38 @@ exports.actualizarContenidoEducativo = async (req, res) => {
     }
 };
 
-// @desc    Eliminar contenido educativo
-// @route   DELETE /api/contenido-educativo/:id
-// @access  Privado (Admin)
 exports.eliminarContenidoEducativo = async (req, res) => {
     try {
         const contenidoId = req.params.id;
 
-        // 1. Buscamos el documento para obtener los Public IDs
         const contenido = await modelos.ContenidoEducativo.findById(contenidoId);
         if (!contenido) {
             return res.status(404).json({ mensaje: 'Contenido educativo no encontrado.' });
         }
 
         const publicIds = [];
-        // 2. Recolectar todos los Public IDs de las imágenes
         if (Array.isArray(contenido.imagenes)) {
             for (const img of contenido.imagenes) {
-                // Verificamos que el campo 'public_id' exista y lo agregamos
                 if (img && img.public_id) {
                     publicIds.push(img.public_id);
                 }
             }
         }
         
-        // 3. Eliminar los archivos de Cloudinary (si existen Public IDs)
         if (publicIds.length > 0) {
             try {
-                // Cloudinary puede eliminar múltiples recursos a la vez
                 const result = await cloudinary.api.delete_resources(publicIds);
                 console.log('Archivos eliminados de Cloudinary:', result);
-                
-                // NOTA: Si necesitas eliminar solo la carpeta y no los recursos, usarías destroy()
-                // Pero delete_resources es la opción estándar.
             } catch (err) {
-                // Manejar error de eliminación de Cloudinary. 
-                // A menudo, se ignora si Cloudinary falla pero la BD debe eliminarse.
                 console.error('Error al intentar eliminar imágenes de Cloudinary:', err);
-                // NOTA: Continuamos con la eliminación de la BD aunque Cloudinary falle,
-                // para evitar que la BD se quede con datos huérfanos.
             }
         }
 
-        // 4. Finalmente, eliminar el documento de la base de datos
         await modelos.ContenidoEducativo.findByIdAndDelete(contenidoId);
 
         res.status(200).json({ 
             mensaje: 'Contenido educativo y archivos vinculados eliminados exitosamente.',
-            archivosEliminados: publicIds // Reportamos los IDs que se intentó eliminar
+            archivosEliminados: publicIds
         });
 
     } catch (error) {
@@ -858,9 +702,6 @@ exports.eliminarContenidoEducativo = async (req, res) => {
     }
 };
 
-// @desc    Obtener contenido por categoría
-// @route   GET /api/contenido-educativo/categoria/:categoria
-// @access  Público
 exports.obtenerContenidoPorCategoria = async (req, res) => {
     try {
         const categoria = req.params.categoria;
@@ -885,9 +726,6 @@ exports.obtenerContenidoPorCategoria = async (req, res) => {
     }
 };
 
-// @desc    Obtener contenido por tipo de material
-// @route   GET /api/contenido-educativo/material/:tipo_material
-// @access  Público
 exports.obtenerContenidoPorTipoMaterial = async (req, res) => {
     try {
         const tipo_material = req.params.tipo_material;
@@ -912,9 +750,6 @@ exports.obtenerContenidoPorTipoMaterial = async (req, res) => {
     }
 };
 
-// @desc    Buscar contenido educativo por término
-// @route   GET /api/contenido-educativo/buscar/:termino
-// @access  Público
 exports.buscarContenidoEducativo = async (req, res) => {
     try {
         const termino = req.params.termino;
@@ -943,9 +778,10 @@ exports.buscarContenidoEducativo = async (req, res) => {
     }
 };
 
-// @desc    Obtener todos los puntos de reciclaje por material (aceptado)
-// @route   GET /api/puntos-reciclaje/material/:material
-// @access  Público
+// =========================================================================
+// CONTROLADORES DE PUNTOS DE RECICLAJE
+// =========================================================================
+
 exports.obtenerPuntosReciclajePorMaterial = async (req, res)=>{
   try {
         const tipo_material = req.params.tipo_material;
@@ -969,9 +805,6 @@ exports.obtenerPuntosReciclajePorMaterial = async (req, res)=>{
     }
 };
 
-// @desc    Obtener todos los puntos de reciclaje de acuerdo al estado
-// @route   GET /api/puntos-reciclaje/estado/:aceptado
-// @access  Público
 exports.obtenerPuntosReciclajeEstado = async (req, res)=>{
     try {
         const estadoAceptado = req.params.aceptado;
@@ -990,18 +823,13 @@ exports.obtenerPuntosReciclajeEstado = async (req, res)=>{
     }
 };
 
-// @desc    Cambiar el punto de reciclaje de no estar aceptado a aceptado.
-// @route   PUT /api/puntos-reciclaje/estado/:id
-// @access  Público
 exports.aceptarPunto = async (req, res) => {
     try {
         const puntoId = req.params.id; 
         const puntoAceptado = await modelos.PuntosReciclaje.findByIdAndUpdate(
             puntoId,
-            
-                {aceptado: "true"},
-                { new: true }
-            
+            {aceptado: "true"},
+            { new: true }
         );
 
         if (!puntoAceptado) {
@@ -1019,9 +847,6 @@ exports.aceptarPunto = async (req, res) => {
     }
 };
 
-// @desc    Editar un registro de puntos de reciclaje
-// @route   PUT /api/puntos-reciclaje/:id
-// @access  Público
 exports.actualizarPuntoReciclaje = async (req, res) => {
      try {
         const puntoId = req.params.id;
@@ -1030,7 +855,7 @@ exports.actualizarPuntoReciclaje = async (req, res) => {
             descripcion,
             latitud,
             longitud,
-	        icono,
+            icono,
             tipo_material,
             direccion,
             telefono,
@@ -1048,7 +873,7 @@ exports.actualizarPuntoReciclaje = async (req, res) => {
         if (descripcion !== undefined) update.descripcion = descripcion.trim();
         if (latitud !== undefined) update.latitud = latitud;
         if (longitud !== undefined) update.longitud = longitud;
-	    if (icono !== undefined) update.icono = icono;
+        if (icono !== undefined) update.icono = icono;
         if (tipo_material !== undefined) update.tipo_material = tipo_material;
         if (direccion !== undefined) update.direccion = direccion;
         if (telefono !== undefined) update.telefono = telefono;
@@ -1075,9 +900,6 @@ exports.actualizarPuntoReciclaje = async (req, res) => {
     }
 };
 
-// @desc    Eliminar un registro de puntos de reciclaje
-// @route   DELETE /api/puntos-reciclaje/:id
-// @access  Público
 exports.eliminarPuntoReciclaje = async (req, res) => {
     try {
         const puntoId = req.params.id;
@@ -1096,13 +918,10 @@ exports.eliminarPuntoReciclaje = async (req, res) => {
 };
 
 // =========================================================================
-// CONTROLADORES PARA SOLICITUDES DE PUNTOS DE RECICLAJE - ACTUALIZADOS
+// CONTROLADORES PARA SOLICITUDES DE PUNTOS DE RECICLAJE - MODIFICADOS
 // =========================================================================
 
-const { SolicitudPunto, PuntosReciclaje } = require('../models/modelos');
-const { geocodificarDireccion, obtenerDireccionDesdeCoordenas, TEPIC_BBOX, estaDentroDeBBox, normalizeTexto } = require('../services/geocoding');
-
-// @desc    Crear una nueva solicitud de punto de reciclaje
+// @desc    Crear una nueva solicitud de punto de reciclaje O punto directo si es admin
 // @route   POST /api/solicitudes-puntos
 // @access  Con autenticación simple
 exports.crearSolicitudPunto = async (req, res) => {
@@ -1113,19 +932,75 @@ exports.crearSolicitudPunto = async (req, res) => {
             direccion,
             tipo_material,
             telefono,
-            horario
+            horario,
+            estado = 'pendiente'
         } = req.body;
 
         // Validar campos requeridos
-        if (!nombre || !descripcion || !direccion || !tipo_material) {
+        if (!nombre || !descripcion || !direccion || !tipo_material || !telefono || !horario) {
             return res.status(400).json({
                 success: false,
-                error: 'Faltan campos obligatorios: nombre, descripción, dirección y tipo de material'
+                errorMessage: 'Faltan campos obligatorios: nombre, descripción, dirección, tipo de material, teléfono y horario'
             });
         }
 
+        const usuarioSolicitante = req.usuario.nombre;
+        const esAdmin = req.usuario.esAdmin;
+
+        // Si es admin, crear el punto de reciclaje directamente
+        if (esAdmin) {
+            // Validar que se proporcionen coordenadas
+            if (!req.body.ubicacion || !req.body.ubicacion.latitud || !req.body.ubicacion.longitud) {
+                return res.status(400).json({
+                    success: false,
+                    errorMessage: 'Para crear un punto directamente se requieren coordenadas válidas'
+                });
+            }
+
+            const { latitud, longitud } = req.body.ubicacion;
+            
+            // Verificar que las coordenadas estén dentro de Tepic
+            if (!estaDentroDeBBox(latitud, longitud, TEPIC_BBOX)) {
+                return res.status(400).json({
+                    success: false,
+                    errorMessage: 'Las coordenadas deben estar dentro del área de Tepic, Nayarit'
+                });
+            }
+
+            // Crear dirección completa
+            const direccionCompleta = `${direccion.calle} ${direccion.numero}, ${direccion.colonia}, Tepic, Nayarit, México`;
+
+            // Crear el punto de reciclaje
+            const nuevoPunto = new modelos.PuntosReciclaje({
+                nombre: nombre.trim(),
+                descripcion: descripcion.trim(),
+                latitud: latitud,
+                longitud: longitud,
+                icono: 'assets/iconos/recycle_general.png',
+                tipo_material: tipo_material,
+                direccion: direccionCompleta,
+                telefono: telefono,
+                horario: horario,
+                aceptado: "true",
+                estado: 'activo',
+                creadoPor: usuarioSolicitante,
+                fechaCreacion: new Date()
+            });
+
+            await nuevoPunto.save();
+
+            return res.status(201).json({
+                success: true,
+                message: 'Punto de reciclaje creado y publicado exitosamente',
+                data: {
+                    punto: nuevoPunto,
+                    tipo: 'punto_directo'
+                }
+            });
+        }
+
+        // Si NO es admin, crear solicitud normal
         // Permitir que el cliente envíe una ubicación ajustada por el usuario.
-        // Si no se envía o no es válida, geocodificamos la dirección.
         let latitudFinal = null;
         let longitudFinal = null;
 
@@ -1162,47 +1037,61 @@ exports.crearSolicitudPunto = async (req, res) => {
         }
 
         // Crear la solicitud con las coordenadas finales
-        const nuevaSolicitud = new SolicitudPunto({
-            nombre,
-            descripcion,
-            direccion,
-            tipo_material,
-            telefono: telefono || '',
-            horario: horario || '',
-            usuarioSolicitante: req.usuario.nombre, // Del middleware authSimple
-            estado: 'pendiente',
+        const nuevaSolicitud = new modelos.SolicitudPunto({
+            nombre: nombre.trim(),
+            descripcion: descripcion.trim(),
+            direccion: direccion,
+            tipo_material: tipo_material,
+            telefono: telefono,
+            horario: horario,
+            usuarioSolicitante: usuarioSolicitante,
+            estado: estado,
             ubicacion: {
                 latitud: latitudFinal,
                 longitud: longitudFinal
-            }
+            },
+            fechaCreacion: new Date()
         });
 
         await nuevaSolicitud.save();
 
         res.status(201).json({
             success: true,
-            data: nuevaSolicitud,
-            message: 'Solicitud creada exitosamente'
+            message: 'Solicitud creada exitosamente',
+            data: {
+                solicitud: nuevaSolicitud,
+                tipo: 'solicitud'
+            }
         });
 
     } catch (error) {
-        console.error('Error creando solicitud:', error);
+        console.error('Error creando solicitud/punto:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor: ' + error.message
+            errorMessage: 'Error interno del servidor: ' + error.message
         });
     }
 };
 
-// @desc    Obtener las solicitudes del usuario actual
+// @desc    Obtener las solicitudes del usuario actual (o todas si es admin)
 // @route   GET /api/solicitudes-puntos/mis-solicitudes
 // @access  Con autenticación simple
 exports.obtenerMisSolicitudes = async (req, res) => {
     try {
-        const solicitudes = await SolicitudPunto.find({ 
-            usuarioSolicitante: req.usuario.nombre // Del middleware authSimple
-        })
-        .sort({ fechaCreacion: -1 });
+        const usuario = req.usuario;
+        let solicitudes;
+
+        if (usuario.esAdmin) {
+            // Admin ve todas las solicitudes
+            solicitudes = await modelos.SolicitudPunto.find()
+                .sort({ fechaCreacion: -1 });
+        } else {
+            // Usuario normal ve solo sus solicitudes
+            solicitudes = await modelos.SolicitudPunto.find({ 
+                usuarioSolicitante: usuario.nombre
+            })
+            .sort({ fechaCreacion: -1 });
+        }
 
         res.json({
             success: true,
@@ -1213,7 +1102,7 @@ exports.obtenerMisSolicitudes = async (req, res) => {
         console.error('Error obteniendo solicitudes:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1223,7 +1112,14 @@ exports.obtenerMisSolicitudes = async (req, res) => {
 // @access  Solo administradores (autenticación simple)
 exports.obtenerSolicitudesPendientes = async (req, res) => {
     try {
-        const solicitudes = await SolicitudPunto.find({ estado: 'pendiente' })
+        if (!req.usuario.esAdmin) {
+            return res.status(403).json({
+                success: false,
+                errorMessage: 'No tienes permisos para realizar esta acción'
+            });
+        }
+
+        const solicitudes = await modelos.SolicitudPunto.find({ estado: 'pendiente' })
             .sort({ fechaCreacion: 1 });
 
         res.json({
@@ -1235,7 +1131,7 @@ exports.obtenerSolicitudesPendientes = async (req, res) => {
         console.error('Error obteniendo solicitudes pendientes:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1245,10 +1141,17 @@ exports.obtenerSolicitudesPendientes = async (req, res) => {
 // @access  Solo administradores (autenticación simple)
 exports.obtenerTodasLasSolicitudes = async (req, res) => {
     try {
+        if (!req.usuario.esAdmin) {
+            return res.status(403).json({
+                success: false,
+                errorMessage: 'No tienes permisos para realizar esta acción'
+            });
+        }
+
         const { estado } = req.query;
         const filter = estado ? { estado } : {};
 
-        const solicitudes = await SolicitudPunto.find(filter)
+        const solicitudes = await modelos.SolicitudPunto.find(filter)
             .sort({ fechaCreacion: -1 });
 
         res.json({
@@ -1260,7 +1163,7 @@ exports.obtenerTodasLasSolicitudes = async (req, res) => {
         console.error('Error obteniendo todas las solicitudes:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1270,66 +1173,65 @@ exports.obtenerTodasLasSolicitudes = async (req, res) => {
 // @access  Solo administradores (autenticación simple)
 exports.aprobarSolicitudPunto = async (req, res) => {
     try {
+        if (!req.usuario.esAdmin) {
+            return res.status(403).json({
+                success: false,
+                errorMessage: 'No tienes permisos para realizar esta acción'
+            });
+        }
+
         const { comentariosAdmin } = req.body;
         
-        const solicitud = await SolicitudPunto.findById(req.params.id);
+        const solicitud = await modelos.SolicitudPunto.findById(req.params.id);
 
         if (!solicitud) {
             return res.status(404).json({
                 success: false,
-                error: 'Solicitud no encontrada'
+                errorMessage: 'Solicitud no encontrada'
             });
         }
 
         if (solicitud.estado !== 'pendiente') {
             return res.status(400).json({
                 success: false,
-                error: 'La solicitud ya fue procesada'
+                errorMessage: 'La solicitud ya fue procesada'
             });
         }
 
         // 1. Actualizar la solicitud
         solicitud.estado = 'aprobada';
-        solicitud.adminRevisor = req.usuario.nombre; // Nombre del admin del middleware
+        solicitud.adminRevisor = req.usuario.nombre;
         solicitud.comentariosAdmin = comentariosAdmin || 'Solicitud aprobada';
         solicitud.fechaRevision = new Date();
         
         await solicitud.save();
 
         // 2. Crear el punto de reciclaje
-        // Obtener coordenadas por geocodificación
-        const calleNorm = normalizeTexto(solicitud.direccion.calle || '');
-        const numeroNorm = normalizeTexto(solicitud.direccion.numero || '');
-        const coloniaNorm = normalizeTexto(solicitud.direccion.colonia || '');
-        const ciudadNorm = normalizeTexto(solicitud.direccion.ciudad || 'Tepic');
-        const estadoNorm = normalizeTexto(solicitud.direccion.estado || 'Nayarit');
-        const paisNorm = normalizeTexto(solicitud.direccion.pais || 'México');
-
-        const coordenadas = await geocodificarDireccion(
-            calleNorm,
-            numeroNorm,
-            coloniaNorm,
-            ciudadNorm,
-            estadoNorm,
-            paisNorm
-        );
+        const direccionCompleta = `${solicitud.direccion.calle} ${solicitud.direccion.numero}, ${solicitud.direccion.colonia}, Tepic, Nayarit, México`;
         
-        const direccionCompleta = `${solicitud.direccion.calle} ${solicitud.direccion.numero}, ${solicitud.direccion.colonia}, ${solicitud.direccion.ciudad}, ${solicitud.direccion.estado}`;
-        
-        const nuevoPunto = new PuntosReciclaje({
+        const nuevoPunto = new modelos.PuntosReciclaje({
             nombre: solicitud.nombre,
             descripcion: solicitud.descripcion,
-            latitud: coordenadas.latitud,
-            longitud: coordenadas.longitud,
-            icono: solicitud.icono || 'assets/iconos/recycle_general.png',
+            latitud: solicitud.ubicacion.latitud,
+            longitud: solicitud.ubicacion.longitud,
+            icono: 'assets/iconos/recycle_general.png',
             tipo_material: solicitud.tipo_material,
             direccion: direccionCompleta,
             telefono: solicitud.telefono,
             horario: solicitud.horario,
-            aceptado: "true"
+            aceptado: "true",
+            estado: 'activo',
+            creadoPor: solicitud.usuarioSolicitante,
+            aprobadoPor: req.usuario.nombre,
+            fechaCreacion: new Date(),
+            solicitudOrigen: solicitud._id
         });
 
         await nuevoPunto.save();
+
+        // Asociar el punto creado con la solicitud
+        solicitud.puntoCreado = nuevoPunto._id;
+        await solicitud.save();
 
         res.json({
             success: true,
@@ -1344,7 +1246,7 @@ exports.aprobarSolicitudPunto = async (req, res) => {
         console.error('Error aprobando solicitud:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor: ' + error.message
+            errorMessage: 'Error interno del servidor: ' + error.message
         });
     }
 };
@@ -1354,33 +1256,40 @@ exports.aprobarSolicitudPunto = async (req, res) => {
 // @access  Solo administradores (autenticación simple)
 exports.rechazarSolicitudPunto = async (req, res) => {
     try {
+        if (!req.usuario.esAdmin) {
+            return res.status(403).json({
+                success: false,
+                errorMessage: 'No tienes permisos para realizar esta acción'
+            });
+        }
+
         const { comentariosAdmin } = req.body;
         
         if (!comentariosAdmin || comentariosAdmin.trim() === '') {
             return res.status(400).json({
                 success: false,
-                error: 'Los comentarios son obligatorios al rechazar una solicitud'
+                errorMessage: 'Los comentarios son obligatorios al rechazar una solicitud'
             });
         }
 
-        const solicitud = await SolicitudPunto.findById(req.params.id);
+        const solicitud = await modelos.SolicitudPunto.findById(req.params.id);
 
         if (!solicitud) {
             return res.status(404).json({
                 success: false,
-                error: 'Solicitud no encontrada'
+                errorMessage: 'Solicitud no encontrada'
             });
         }
 
         if (solicitud.estado !== 'pendiente') {
             return res.status(400).json({
                 success: false,
-                error: 'La solicitud ya fue procesada'
+                errorMessage: 'La solicitud ya fue procesada'
             });
         }
 
         solicitud.estado = 'rechazada';
-        solicitud.adminRevisor = req.usuario.nombre; // Nombre del admin del middleware
+        solicitud.adminRevisor = req.usuario.nombre;
         solicitud.comentariosAdmin = comentariosAdmin;
         solicitud.fechaRevision = new Date();
         
@@ -1396,7 +1305,7 @@ exports.rechazarSolicitudPunto = async (req, res) => {
         console.error('Error rechazando solicitud:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1406,10 +1315,17 @@ exports.rechazarSolicitudPunto = async (req, res) => {
 // @access  Solo administradores (autenticación simple)
 exports.obtenerEstadisticasSolicitudes = async (req, res) => {
     try {
-        const totalSolicitudes = await SolicitudPunto.countDocuments();
-        const solicitudesPendientes = await SolicitudPunto.countDocuments({ estado: 'pendiente' });
-        const solicitudesAprobadas = await SolicitudPunto.countDocuments({ estado: 'aprobada' });
-        const solicitudesRechazadas = await SolicitudPunto.countDocuments({ estado: 'rechazada' });
+        if (!req.usuario.esAdmin) {
+            return res.status(403).json({
+                success: false,
+                errorMessage: 'No tienes permisos para realizar esta acción'
+            });
+        }
+
+        const totalSolicitudes = await modelos.SolicitudPunto.countDocuments();
+        const solicitudesPendientes = await modelos.SolicitudPunto.countDocuments({ estado: 'pendiente' });
+        const solicitudesAprobadas = await modelos.SolicitudPunto.countDocuments({ estado: 'aprobada' });
+        const solicitudesRechazadas = await modelos.SolicitudPunto.countDocuments({ estado: 'rechazada' });
 
         res.json({
             success: true,
@@ -1425,7 +1341,7 @@ exports.obtenerEstadisticasSolicitudes = async (req, res) => {
         console.error('Error obteniendo estadísticas:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1435,12 +1351,20 @@ exports.obtenerEstadisticasSolicitudes = async (req, res) => {
 // @access  Con autenticación simple
 exports.obtenerSolicitudPorId = async (req, res) => {
     try {
-        const solicitud = await SolicitudPunto.findById(req.params.id);
+        const solicitud = await modelos.SolicitudPunto.findById(req.params.id);
 
         if (!solicitud) {
             return res.status(404).json({
                 success: false,
-                error: 'Solicitud no encontrada'
+                errorMessage: 'Solicitud no encontrada'
+            });
+        }
+
+        // Solo permitir ver la solicitud si es el propietario o admin
+        if (solicitud.usuarioSolicitante !== req.usuario.nombre && !req.usuario.esAdmin) {
+            return res.status(403).json({
+                success: false,
+                errorMessage: 'No tienes permisos para ver esta solicitud'
             });
         }
 
@@ -1453,7 +1377,7 @@ exports.obtenerSolicitudPorId = async (req, res) => {
         console.error('Error obteniendo solicitud por ID:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1472,12 +1396,12 @@ exports.actualizarSolicitudPunto = async (req, res) => {
             horario
         } = req.body;
 
-        const solicitud = await SolicitudPunto.findById(req.params.id);
+        const solicitud = await modelos.SolicitudPunto.findById(req.params.id);
 
         if (!solicitud) {
             return res.status(404).json({
                 success: false,
-                error: 'Solicitud no encontrada'
+                errorMessage: 'Solicitud no encontrada'
             });
         }
 
@@ -1485,7 +1409,15 @@ exports.actualizarSolicitudPunto = async (req, res) => {
         if (solicitud.usuarioSolicitante !== req.usuario.nombre && !req.usuario.esAdmin) {
             return res.status(403).json({
                 success: false,
-                error: 'No tienes permisos para actualizar esta solicitud'
+                errorMessage: 'No tienes permisos para actualizar esta solicitud'
+            });
+        }
+
+        // No permitir actualizar si ya fue procesada (a menos que sea admin)
+        if (solicitud.estado !== 'pendiente' && !req.usuario.esAdmin) {
+            return res.status(400).json({
+                success: false,
+                errorMessage: 'No se puede actualizar una solicitud ya procesada'
             });
         }
 
@@ -1509,7 +1441,7 @@ exports.actualizarSolicitudPunto = async (req, res) => {
         console.error('Error actualizando solicitud:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1519,12 +1451,12 @@ exports.actualizarSolicitudPunto = async (req, res) => {
 // @access  Con autenticación simple
 exports.eliminarSolicitudPunto = async (req, res) => {
     try {
-        const solicitud = await SolicitudPunto.findById(req.params.id);
+        const solicitud = await modelos.SolicitudPunto.findById(req.params.id);
 
         if (!solicitud) {
             return res.status(404).json({
                 success: false,
-                error: 'Solicitud no encontrada'
+                errorMessage: 'Solicitud no encontrada'
             });
         }
 
@@ -1532,11 +1464,11 @@ exports.eliminarSolicitudPunto = async (req, res) => {
         if (solicitud.usuarioSolicitante !== req.usuario.nombre && !req.usuario.esAdmin) {
             return res.status(403).json({
                 success: false,
-                error: 'No tienes permisos para eliminar esta solicitud'
+                errorMessage: 'No tienes permisos para eliminar esta solicitud'
             });
         }
 
-        await SolicitudPunto.findByIdAndDelete(req.params.id);
+        await modelos.SolicitudPunto.findByIdAndDelete(req.params.id);
 
         res.json({
             success: true,
@@ -1547,7 +1479,7 @@ exports.eliminarSolicitudPunto = async (req, res) => {
         console.error('Error eliminando solicitud:', error);
         res.status(500).json({
             success: false,
-            error: 'Error interno del servidor'
+            errorMessage: 'Error interno del servidor'
         });
     }
 };
@@ -1563,7 +1495,7 @@ exports.geocodificarPreview = async (req, res) => {
         if (!calle || !numero || !colonia) {
             return res.status(400).json({
                 success: false,
-                error: 'Campos requeridos: calle, numero, colonia'
+                errorMessage: 'Campos requeridos: calle, numero, colonia'
             });
         }
 
@@ -1585,7 +1517,7 @@ exports.geocodificarPreview = async (req, res) => {
         console.error('Error en geocodificarPreview:', error);
         res.status(500).json({
             success: false,
-            error: 'Error al geocodificar'
+            errorMessage: 'Error al geocodificar'
         });
     }
 };
@@ -1593,16 +1525,14 @@ exports.geocodificarPreview = async (req, res) => {
 // @route   POST /api/reverse-geocode
 // @access  Público (sin autenticación)
 // @desc    Obtiene la dirección aproximada desde coordenadas (lat, lon)
-//          Útil cuando el usuario ajusta manualmente la ubicación en el mapa
 exports.reverseGeocode = async (req, res) => {
     try {
         const { latitud, longitud } = req.body;
 
-        // Validar coordenadas
         if (latitud === undefined || longitud === undefined) {
             return res.status(400).json({
                 success: false,
-                error: 'Campos requeridos: latitud, longitud'
+                errorMessage: 'Campos requeridos: latitud, longitud'
             });
         }
 
@@ -1611,7 +1541,7 @@ exports.reverseGeocode = async (req, res) => {
         if (!direccion) {
             return res.status(400).json({
                 success: false,
-                error: 'No se pudo obtener la dirección para estas coordenadas'
+                errorMessage: 'No se pudo obtener la dirección para estas coordenadas'
             });
         }
 
@@ -1624,7 +1554,7 @@ exports.reverseGeocode = async (req, res) => {
         console.error('Error en reverseGeocode:', error);
         res.status(500).json({
             success: false,
-            error: 'Error al realizar reverse geocoding'
+            errorMessage: 'Error al realizar reverse geocoding'
         });
     }
 };

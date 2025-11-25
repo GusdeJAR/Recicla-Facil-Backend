@@ -7,7 +7,7 @@ import '../../models/punto_reciclaje.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/puntos_provider.dart';
 import '../../services/puntos_reciclaje_service.dart';
-import 'solicitudes_puntos_screen.dart'; // Importar la pantalla de solicitudes
+import 'solicitudes_puntos_screen.dart';
 
 class PuntosScreen extends StatefulWidget {
   const PuntosScreen({super.key});
@@ -17,7 +17,7 @@ class PuntosScreen extends StatefulWidget {
 }
 
 class _PuntosScreenState extends State<PuntosScreen> {
-  bool isAdmin=false;
+  bool isAdmin = false;
   String? _materialFiltro;
   bool _mostrarMapa = false;
   LatLng? _currentLocation;
@@ -32,7 +32,6 @@ class _PuntosScreenState extends State<PuntosScreen> {
     'Vidrio',
   ];
 
-
   static const LatLng _centroTepic = LatLng(21.5018, -104.8946);
 
   @override
@@ -41,10 +40,8 @@ class _PuntosScreenState extends State<PuntosScreen> {
     _materialFiltro = 'Todos';
     _getCurrentLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Leemos el provider SIN escuchar cambios para llamar a un método.
       Provider.of<PuntosProvider>(context, listen: false).cargarPuntos();
     });
-    _getCurrentLocation();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -55,7 +52,8 @@ class _PuntosScreenState extends State<PuntosScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission != LocationPermission.whileInUse &&
-          permission != LocationPermission.always) return;
+          permission != LocationPermission.always)
+        return;
     }
 
     try {
@@ -68,36 +66,36 @@ class _PuntosScreenState extends State<PuntosScreen> {
     }
   }
 
-  // NUEVO: Método para navegar a la pantalla de nueva solicitud
   void _navegarANuevaSolicitud() async {
     final resultado = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => NuevaSolicitudPuntoScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => NuevaSolicitudPuntoScreen()),
     );
 
-    // Recargar puntos si se aprobó una solicitud
     if (resultado == true) {
-      Provider.of<PuntosProvider>(context, listen: false)
-          .cargarPuntos(
-          material: _materialFiltro!); // Recarga con el filtro actual
+      // Pequeño delay para asegurar que la base de datos haya guardado
+      await Future.delayed(Duration(milliseconds: 500));
+      Provider.of<PuntosProvider>(
+        context,
+        listen: false,
+      ).cargarPuntos(material: _materialFiltro!);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('¡Solicitud enviada exitosamente!'),
+          content: Text(
+            isAdmin
+                ? '¡Punto de reciclaje creado y publicado exitosamente!'
+                : '¡Solicitud enviada exitosamente!',
+          ),
           backgroundColor: Colors.green,
         ),
       );
     }
   }
 
-  // NUEVO: Método para navegar a mis solicitudes
   void _navegarAMisSolicitudes() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SolicitudesPuntosScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => SolicitudesPuntosScreen()),
     );
   }
 
@@ -107,26 +105,52 @@ class _PuntosScreenState extends State<PuntosScreen> {
     final bool _isLoading = puntosProvider.isLoading;
     final List<PuntoReciclaje> _puntosEncontrados = puntosProvider.puntos;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    isAdmin=authProvider.isAdmin;
+    isAdmin = authProvider.isAdmin;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        title: Text(
+          'Puntos de Reciclaje',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 1,
         actions: [
-         if(!isAdmin)
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: Colors.green[100],
-              borderRadius: BorderRadius.circular(8),
+          // Botón para administradores - Crear punto directamente
+          if (isAdmin)
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.add_location,
+                  color: Colors.blue[700],
+                  size: 24,
+                ),
+                onPressed: _navegarANuevaSolicitud,
+                tooltip: 'Crear punto directamente',
+              ),
             ),
-            child: IconButton(
-              icon: Icon(Icons.list_alt, color: Colors.green[700], size: 24),
-              onPressed: _navegarAMisSolicitudes,
-              tooltip: 'Mis solicitudes',
+
+          // Botón para usuarios normales - Mis solicitudes
+          if (!isAdmin)
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.list_alt, color: Colors.green[700], size: 24),
+                onPressed: _navegarAMisSolicitudes,
+                tooltip: 'Mis solicitudes',
+              ),
             ),
-          ),
+
           // Botón para cambiar entre mapa y lista
           Container(
             margin: EdgeInsets.symmetric(horizontal: 4),
@@ -160,47 +184,48 @@ class _PuntosScreenState extends State<PuntosScreen> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 8),
-                // NUEVO: Información sobre solicitudes
-                if(!isAdmin)
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green[100]!),
-                  ),
 
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 16,
-                          color: Colors.green[700]),
-                      SizedBox(width: 8),
-
-                      Expanded(
-                        child: Text(
-                          '¿No encuentras un punto? ¡Solicita agregarlo!',
-                          style: TextStyle(
-                            color: Colors.green[700],
-                            fontSize: 14,
+                // Información para usuario normal
+                if (!isAdmin)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green[100]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Colors.green[700],
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '¿No encuentras un punto? ¡Solicita agregarlo!',
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
-                      //AuthProvider
-
-                      TextButton(
-                        onPressed: _navegarANuevaSolicitud,
-                        child: Text(
-                          'Solicitar',
-                          style: TextStyle(
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.bold,
+                        TextButton(
+                          onPressed: _navegarANuevaSolicitud,
+                          child: Text(
+                            'Solicitar',
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+
                 SizedBox(height: 16),
                 Row(
                   children: [
@@ -210,11 +235,14 @@ class _PuntosScreenState extends State<PuntosScreen> {
                         value: _materialFiltro,
                         decoration: InputDecoration(
                           labelText: 'Filtro de material',
-                          hintText: 'Seleccione uno de los materiales para buscar',
+                          hintText:
+                              'Seleccione uno de los materiales para buscar',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.filter_list),
                           contentPadding: EdgeInsets.symmetric(
-                              vertical: 10, horizontal: 12),
+                            vertical: 10,
+                            horizontal: 12,
+                          ),
                         ),
                         items: _tiposMaterial.map((material) {
                           return DropdownMenuItem<String>(
@@ -234,14 +262,16 @@ class _PuntosScreenState extends State<PuntosScreen> {
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(
-                            vertical: 16, horizontal: 20),
+                          vertical: 16,
+                          horizontal: 20,
+                        ),
                       ),
                       child: _isLoading
                           ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : Text('Buscar'),
                     ),
                   ],
@@ -265,16 +295,15 @@ class _PuntosScreenState extends State<PuntosScreen> {
                 ? Center(child: CircularProgressIndicator())
                 : _puntosEncontrados.isEmpty
                 ? _buildEmptyState()
-                : _mostrarMapa ? _construirMapa(_puntosEncontrados) : _construirLista(_puntosEncontrados),
+                : _mostrarMapa
+                ? _construirMapa(_puntosEncontrados)
+                : _construirLista(_puntosEncontrados),
           ),
         ],
       ),
-      // NUEVO: Floating Action Button para crear solicitud rápida
-
     );
   }
 
-  // NUEVO: Estado vacío mejorado con opción para crear solicitud
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -283,11 +312,7 @@ class _PuntosScreenState extends State<PuntosScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.location_off,
-                size: 80,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.location_off, size: 80, color: Colors.grey[400]),
               SizedBox(height: 16),
               Text(
                 'No se encontraron puntos de reciclaje',
@@ -299,33 +324,39 @@ class _PuntosScreenState extends State<PuntosScreen> {
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 8),
-              if(isAdmin)
               Text(
-                'Puedes solicitar agregar un nuevo punto de reciclaje en tu zona',
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                ),
+                isAdmin
+                    ? 'Usa el botón de la barra superior para crear un nuevo punto'
+                    : 'Puedes solicitar agregar un nuevo punto de reciclaje en tu zona',
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
                 textAlign: TextAlign.center,
               ),
 
               SizedBox(height: 24),
-              //AuthProvider
-              if(!isAdmin)
-              ElevatedButton.icon(
-                onPressed: _navegarANuevaSolicitud,
-                icon: Icon(Icons.add_location_alt),
-                label: Text('Solicitar nuevo punto'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+
+              // Solo mostrar botón para usuarios normales
+              if (!isAdmin)
+                ElevatedButton.icon(
+                  onPressed: _navegarANuevaSolicitud,
+                  icon: Icon(Icons.add_location_alt),
+                  label: Text('Solicitar nuevo punto'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
                 ),
-              ),
+
               SizedBox(height: 16),
+
+              // Botón para ver solicitudes
               TextButton(
                 onPressed: _navegarAMisSolicitudes,
-                child: Text('Ver mis solicitudes anteriores'),
+                child: Text(
+                  isAdmin
+                      ? 'Gestionar solicitudes'
+                      : 'Ver mis solicitudes anteriores',
+                ),
               ),
             ],
           ),
@@ -334,7 +365,7 @@ class _PuntosScreenState extends State<PuntosScreen> {
     );
   }
 
-  Widget _construirLista(List <PuntoReciclaje> puntos) {
+  Widget _construirLista(List<PuntoReciclaje> puntos) {
     return ListView.builder(
       itemCount: puntos.length,
       itemBuilder: (context, index) {
@@ -344,7 +375,9 @@ class _PuntosScreenState extends State<PuntosScreen> {
           child: ListTile(
             leading: Icon(Icons.recycling, color: Colors.green),
             title: Text(
-                centro.nombre, style: TextStyle(fontWeight: FontWeight.bold)),
+              centro.nombre,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Text(centro.direccion),
             trailing: Icon(Icons.chevron_right, color: Colors.green),
             onTap: () => _mostrarDetallesCentro(centro),
@@ -354,7 +387,7 @@ class _PuntosScreenState extends State<PuntosScreen> {
     );
   }
 
-  Widget _construirMapa(List <PuntoReciclaje> puntos) {
+  Widget _construirMapa(List<PuntoReciclaje> puntos) {
     return Stack(
       children: [
         FlutterMap(
@@ -373,9 +406,11 @@ class _PuntosScreenState extends State<PuntosScreen> {
                 markers: [
                   Marker(
                     point: _currentLocation!,
-                    builder: (ctx) =>
-                        Icon(Icons.person_pin_circle, color: Colors.blue,
-                            size: 40),
+                    builder: (ctx) => Icon(
+                      Icons.person_pin_circle,
+                      color: Colors.blue,
+                      size: 40,
+                    ),
                   ),
                 ],
               ),
@@ -383,20 +418,23 @@ class _PuntosScreenState extends State<PuntosScreen> {
               markers: puntos.map((centro) {
                 return Marker(
                   point: centro.coordenadas,
-                  builder: (ctx) =>
-                      GestureDetector(
-                        onTap: () => _mostrarDetallesCentro(centro),
-                        child: Tooltip(
-                          message: centro.nombre,
-                          child: Icon(Icons.recycling, color: Colors.green,
-                              size: 30),
-                        ),
+                  builder: (ctx) => GestureDetector(
+                    onTap: () => _mostrarDetallesCentro(centro),
+                    child: Tooltip(
+                      message: centro.nombre,
+                      child: Icon(
+                        Icons.recycling,
+                        color: Colors.green,
+                        size: 30,
                       ),
+                    ),
+                  ),
                 );
               }).toList(),
             ),
           ],
         ),
+        // Solo el botón para centrar en la ubicación del usuario
         if (_currentLocation != null)
           Positioned(
             bottom: 20,
@@ -408,20 +446,6 @@ class _PuntosScreenState extends State<PuntosScreen> {
               mini: true,
             ),
           ),
-        // NUEVO: Botón para solicitar punto en el mapa
-        //AuthProvider
-        if(!isAdmin)
-        Positioned(
-          bottom: 20,
-          left: 20,
-          child: FloatingActionButton(
-            onPressed: _navegarANuevaSolicitud,
-            child: Icon(Icons.add_location_alt),
-            backgroundColor: Colors.green,
-            mini: true,
-            tooltip: 'Solicitar punto aquí',
-          ),
-        ),
       ],
     );
   }
@@ -444,22 +468,33 @@ class _PuntosScreenState extends State<PuntosScreen> {
                   children: [
                     Icon(Icons.recycling, color: Colors.green, size: 30),
                     SizedBox(width: 12),
-                    Expanded(child: Text(centro.nombre, style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold))),
+                    Expanded(
+                      child: Text(
+                        centro.nombre,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 SizedBox(height: 16),
-                Text(centro.descripcion,
-                    style: TextStyle(color: Colors.grey[600])),
+                Text(
+                  centro.descripcion,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
                 SizedBox(height: 16),
                 _buildInfoRow(Icons.location_on, centro.direccion),
                 _buildInfoRow(Icons.phone, centro.telefono),
                 _buildInfoRow(Icons.access_time, centro.horario),
                 SizedBox(height: 16),
-                Text('Materiales aceptados:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Materiales aceptados:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 SizedBox(height: 8),
-            
+
                 Wrap(
                   spacing: 8.0,
                   runSpacing: 4.0,
@@ -476,28 +511,31 @@ class _PuntosScreenState extends State<PuntosScreen> {
                   }).toList(),
                 ),
                 SizedBox(height: 20),
-                // NUEVO: Botón para sugerir mejoras/solicitar puntos similares
-               //AuthProvider
-                if(!isAdmin)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _navegarANuevaSolicitud,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: BorderSide(color: Colors.green),
+                // Botón para sugerir mejoras (solo para usuarios normales)
+                if (!isAdmin)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _navegarANuevaSolicitud,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green,
+                        side: BorderSide(color: Colors.green),
+                      ),
+                      child: Text('Sugerir punto similar'),
                     ),
-                    child: Text('Sugerir punto similar'),
                   ),
-                ),
                 SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green),
-                    child: Text('Cerrar', style: TextStyle(color: Colors.white)),
+                      backgroundColor: Colors.green,
+                    ),
+                    child: Text(
+                      'Cerrar',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
               ],
@@ -522,7 +560,9 @@ class _PuntosScreenState extends State<PuntosScreen> {
   }
 
   void _buscarPuntos() async {
-    Provider.of<PuntosProvider>(context, listen: false)
-        .cargarPuntos(material: _materialFiltro!);
+    Provider.of<PuntosProvider>(
+      context,
+      listen: false,
+    ).cargarPuntos(material: _materialFiltro!);
   }
 }
