@@ -241,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(width: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushNamed(context, '/forgot-password');
+                              Navigator.pushReplacementNamed(context, '/register');
                             },
                             child: Text(
                               'Olvidé mi contraseña',

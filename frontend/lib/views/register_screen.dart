@@ -47,8 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         // Regresar al login después de registro exitoso
         // ignore: use_build_context_synchronously
-        Navigator.pop(context);
-      } else {
+        Navigator.pushReplacementNamed(context, '/login');      } else {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response['mensaje'] ?? 'Error en el registro')),
@@ -302,8 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       // Enlace para volver al login
                       TextButton(
                         onPressed: () {
-                          Navigator.pop(context);
-                          },
+                          Navigator.pushReplacementNamed(context, '/login');                          },
                         child: Text(
                           '¿Ya tienes una cuenta? Inicia sesión',
                           style: TextStyle(
