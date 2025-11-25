@@ -7,17 +7,18 @@ import 'package:rf_sprint1/widgets/mapa_ubicacion_widget.dart';
 import '../../providers/admin_solicitudes_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/solicitudes_provider.dart';
+import '../../providers/puntos_provider.dart';
 
 class SolicitudesPuntosScreen extends StatefulWidget {
   const SolicitudesPuntosScreen({super.key});
 
   @override
-  State<SolicitudesPuntosScreen> createState() => _SolicitudesPuntosScreenState();
+  State<SolicitudesPuntosScreen> createState() =>
+      _SolicitudesPuntosScreenState();
 }
 
 class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
   bool _mostrarSoloPendientes = true;
-
 
   @override
   void initState() {
@@ -25,44 +26,45 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isLoggedIn) {
-        Provider.of<SolicitudesProvider>(context, listen: false)
-            .cargarSolicitudesUsuario(authProvider.userName!, authProvider.isAdmin);
+        Provider.of<SolicitudesProvider>(
+          context,
+          listen: false,
+        ).cargarSolicitudesUsuario(
+          authProvider.userName!,
+          authProvider.isAdmin,
+        );
       }
     });
   }
 
   Future<void> _cargarSolicitudes() async {
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      if (authProvider.isLoggedIn) {
-        // Usar el nombre de usuario real del AuthProvider
-        await Provider.of<SolicitudesProvider>(context, listen: false)
-            .cargarSolicitudesUsuario(authProvider.userName!, authProvider.isAdmin);
-      } else {
-        _mostrarError('Debes iniciar sesión para ver tus solicitudes');
-      }
-
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.isLoggedIn) {
+      // Usar el nombre de usuario real del AuthProvider
+      await Provider.of<SolicitudesProvider>(
+        context,
+        listen: false,
+      ).cargarSolicitudesUsuario(authProvider.userName!, authProvider.isAdmin);
+    } else {
+      _mostrarError('Debes iniciar sesión para ver tus solicitudes');
+    }
   }
 
   void _mostrarError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensaje),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
     );
   }
 
   void _mostrarExito(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensaje),
-        backgroundColor: Colors.green,
-      ),
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.green),
     );
   }
 
-  List<SolicitudPunto> _getSolicitudesFiltradas(List<SolicitudPunto> solicitudes) {
+  List<SolicitudPunto> _getSolicitudesFiltradas(
+    List<SolicitudPunto> solicitudes,
+  ) {
     if (_mostrarSoloPendientes) {
       return solicitudes.where((s) => s.estado == 'pendiente').toList();
     }
@@ -70,19 +72,28 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
   }
 
   void _nuevaSolicitud() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final resultado = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => NuevaSolicitudPuntoScreen()),
     );
     if (resultado == true) {
-      _mostrarExito('Solicitud creada exitosamente');
+      if (authProvider.isAdmin) {
+        _mostrarExito('¡Punto de reciclaje creado y publicado exitosamente!');
+        Provider.of<PuntosProvider>(context, listen: false).cargarPuntos();
+      } else {
+        _mostrarExito('Solicitud creada exitosamente');
+      }
+      _cargarSolicitudes();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final solicitudesProvider = context.watch<SolicitudesProvider>();
-    final solicitudesFiltradas = _getSolicitudesFiltradas(solicitudesProvider.solicitudes);
+    final solicitudesFiltradas = _getSolicitudesFiltradas(
+      solicitudesProvider.solicitudes,
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -108,8 +119,12 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
                 value: true,
                 child: Row(
                   children: [
-                    Icon(_mostrarSoloPendientes ? Icons.radio_button_checked : Icons.radio_button_off,
-                        color: Colors.orange),
+                    Icon(
+                      _mostrarSoloPendientes
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
+                      color: Colors.orange,
+                    ),
                     SizedBox(width: 8),
                     Text('Solo pendientes'),
                   ],
@@ -119,8 +134,12 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
                 value: false,
                 child: Row(
                   children: [
-                    Icon(!_mostrarSoloPendientes ? Icons.radio_button_checked : Icons.radio_button_off,
-                        color: Colors.blue),
+                    Icon(
+                      !_mostrarSoloPendientes
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
+                      color: Colors.blue,
+                    ),
                     SizedBox(width: 8),
                     Text('Todas las solicitudes'),
                   ],
@@ -133,8 +152,8 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
       body: solicitudesProvider.isLoading
           ? Center(child: CircularProgressIndicator())
           : solicitudesFiltradas.isEmpty
-              ? _buildEmptyState()
-              : _buildListaSolicitudes(solicitudesFiltradas),
+          ? _buildEmptyState()
+          : _buildListaSolicitudes(solicitudesFiltradas),
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab_mis_solicitudes',
         onPressed: _nuevaSolicitud,
@@ -150,14 +169,10 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.location_on_outlined,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.location_on_outlined, size: 80, color: Colors.grey[400]),
           SizedBox(height: 16),
           Text(
-            _mostrarSoloPendientes 
+            _mostrarSoloPendientes
                 ? 'No tienes solicitudes pendientes'
                 : 'No has realizado ninguna solicitud',
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
@@ -218,10 +233,7 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
                 Expanded(
                   child: Text(
                     solicitud.nombre,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -239,35 +251,29 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
               ],
             ),
             SizedBox(height: 12),
-            
+
             // Descripción
             Text(
               solicitud.descripcion,
               style: TextStyle(color: Colors.grey[700]),
             ),
             SizedBox(height: 12),
-            
+
             // Dirección
             _buildInfoItem(
               Icons.location_on,
               '${solicitud.direccion.calle} ${solicitud.direccion.numero}, ${solicitud.direccion.colonia}',
             ),
             SizedBox(height: 8),
-            
+
             // Teléfono
-            _buildInfoItem(
-              Icons.phone,
-              solicitud.telefono,
-            ),
+            _buildInfoItem(Icons.phone, solicitud.telefono),
             SizedBox(height: 8),
-            
+
             // Horario
-            _buildInfoItem(
-              Icons.access_time,
-              solicitud.horario,
-            ),
+            _buildInfoItem(Icons.access_time, solicitud.horario),
             SizedBox(height: 12),
-            
+
             // Materiales
             Wrap(
               spacing: 8,
@@ -280,9 +286,10 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
                 );
               }).toList(),
             ),
-            
+
             // Comentarios del admin si existe
-            if (solicitud.comentariosAdmin != null && solicitud.comentariosAdmin!.isNotEmpty)
+            if (solicitud.comentariosAdmin != null &&
+                solicitud.comentariosAdmin!.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -293,7 +300,9 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
                     decoration: BoxDecoration(
                       color: Colors.grey[50],
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300] ?? Colors.grey),
+                      border: Border.all(
+                        color: Colors.grey[300] ?? Colors.grey,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,10 +324,7 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
             SizedBox(height: 12),
             Text(
               'Solicitado: ${_formatearFecha(solicitud.fechaCreacion)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -332,12 +338,7 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
       children: [
         Icon(icon, size: 16, color: Colors.grey[600]),
         SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            texto,
-            style: TextStyle(fontSize: 14),
-          ),
-        ),
+        Expanded(child: Text(texto, style: TextStyle(fontSize: 14))),
       ],
     );
   }
@@ -376,7 +377,8 @@ class _SolicitudesPuntosScreenState extends State<SolicitudesPuntosScreen> {
 // Pantalla para nueva solicitud de punto de reciclaje
 class NuevaSolicitudPuntoScreen extends StatefulWidget {
   @override
-  _NuevaSolicitudPuntoScreenState createState() => _NuevaSolicitudPuntoScreenState();
+  _NuevaSolicitudPuntoScreenState createState() =>
+      _NuevaSolicitudPuntoScreenState();
 }
 
 class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
@@ -387,26 +389,59 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
   final _numeroController = TextEditingController();
   final _coloniaController = TextEditingController();
   final _telefonoController = TextEditingController();
-  List <String> opcionesDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  List <String> opcionesHora = ['8:00', '8:30', '9:00', '9:30', '10:00', '10:30', '11:00', '11:30', '12:00',
-    '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00',
-        '18:30', '19:00'];
+  List<String> opcionesDias = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+  ];
+  List<String> opcionesHora = [
+    '8:00',
+    '8:30',
+    '9:00',
+    '9:30',
+    '10:00',
+    '10:30',
+    '11:00',
+    '11:30',
+    '12:00',
+    '12:30',
+    '13:00',
+    '13:30',
+    '14:00',
+    '14:30',
+    '15:00',
+    '15:30',
+    '16:00',
+    '16:30',
+    '17:00',
+    '17:30',
+    '18:00',
+    '18:30',
+    '19:00',
+  ];
   String? diaSeleccionado1;
   String? diaSeleccionado2;
   String? horaSeleccionada1;
   String? horaSeleccionada2;
-  String horario="";
-  final SolicitudesPuntosService _solicitudesService = SolicitudesPuntosService();
+  String horario = "";
+  final SolicitudesPuntosService _solicitudesService =
+      SolicitudesPuntosService();
   final GeocodingService _geocodingService = GeocodingService();
-  
+
   // Usar la lista del servicio para mantener consistencia
-  List<String> get _tiposMaterial => _solicitudesService.tiposMaterialDisponibles
-      .where((material) => material != 'Todos') // Excluir "Todos" ya que es para filtros
+  List<String> get _tiposMaterial => _solicitudesService
+      .tiposMaterialDisponibles
+      .where(
+        (material) => material != 'Todos',
+      ) // Excluir "Todos" ya que es para filtros
       .toList();
-      
+
   List<String> _tiposSeleccionados = [];
   bool _enviando = false;
-  
+
   // Variables para validación y preview
   UbicacionPreview? _ubicacionPreview;
   bool _geocodificandoPreview = false;
@@ -449,15 +484,18 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                 controller: _nombreController,
                 label: 'Nombre del punto de reciclaje *',
                 hintText: 'Ej: Centro de Acopio Ecológico Tepic',
-                validator: (value) => value!.isEmpty ? 'Ingresa el nombre del punto' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Ingresa el nombre del punto' : null,
               ),
               SizedBox(height: 16),
               _buildTextField(
                 controller: _descripcionController,
                 label: 'Descripción del punto *',
-                hintText: 'Ej: Centro especializado en reciclaje de plástico y vidrio',
+                hintText:
+                    'Ej: Centro especializado en reciclaje de plástico y vidrio',
                 maxLines: 3,
-                validator: (value) => value!.isEmpty ? 'Ingresa una descripción' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Ingresa una descripción' : null,
               ),
               SizedBox(height: 16),
               _buildDireccionSection(),
@@ -477,7 +515,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                   if (value.length > 10) {
                     return 'El número de teléfono no puede ser mayor a diez cifras';
                   }
-                }
+                },
               ),
               SizedBox(height: 16),
 
@@ -507,7 +545,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                           diaSeleccionado2 = null;
                         });
                       },
-                      validator: (value) => value == null ? 'Por favor, selecciona un día' : null,
+                      validator: (value) =>
+                          value == null ? 'Por favor, selecciona un día' : null,
                     ),
                   ),
                   SizedBox(width: 16),
@@ -529,75 +568,84 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                           child: Text(dia2),
                         );
                       }).toList(),
-                      onChanged: diaSeleccionado1 == null ? null : (String? nuevoValor) {
-                        setState(() {
-                          diaSeleccionado2 = nuevoValor;
-                        });
-                      },
-                      validator: (value) => value == null ? 'Por favor, selecciona día' : null,
+                      onChanged: diaSeleccionado1 == null
+                          ? null
+                          : (String? nuevoValor) {
+                              setState(() {
+                                diaSeleccionado2 = nuevoValor;
+                              });
+                            },
+                      validator: (value) =>
+                          value == null ? 'Por favor, selecciona día' : null,
                     ),
                   ),
                 ],
               ),
-                  SizedBox(height: 16),
-               Row(
-                 children: [
-                   Expanded(
-                     child: DropdownButtonFormField<String?>(
-                       value: horaSeleccionada1,
-                       hint: Text("Hora de inicio del horario:"),
-                       isExpanded: true,
-                       decoration: InputDecoration(
-                         contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
-                         hintText: 'Seleccione una hora de inicio del horario',
-                         border: OutlineInputBorder(
-                           borderRadius: BorderRadius.circular(8.0),
-                         ),
-                       ),
-                       items: opcionesHora.map((String hora1) {
-                         return DropdownMenuItem<String>(
-                           value: hora1,
-                           child: Text(hora1),
-                         );
-                       }).toList(),
-                       onChanged: (String? nuevoValor) {
-                         setState(() {
-                           horaSeleccionada1 = nuevoValor;
-                           horaSeleccionada2 = null;
-                         });
-                       },
-                       validator: (value) => value == null ? 'Por favor, selecciona una hora' : null,
-                     ),
-                   ),
-                   SizedBox(width: 16),
-                   Expanded(
-                     child: DropdownButtonFormField<String?>(
-                       value: horaSeleccionada2,
-                       hint: Text("Hora de fin del horario:"),
-                       isExpanded: true,
-                       decoration: InputDecoration(
-                         contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
-                         hintText: 'Seleccione una hora de fin del horario',
-                         border: OutlineInputBorder(
-                           borderRadius: BorderRadius.circular(8.0),
-                         ),
-                       ),
-                       items: opcionesHoras2.map((String hora2) {
-                         return DropdownMenuItem<String>(
-                           value: hora2,
-                           child: Text(hora2),
-                         );
-                       }).toList(),
-                       onChanged: horaSeleccionada1 == null ? null : (String? nuevoValor) {
-                         setState(() {
-                           horaSeleccionada2 = nuevoValor;
-                         });
-                       },
-                       validator: (value) => value == null ? 'Por favor, selecciona una hora' : null,
-                     ),
-                   ),
-                 ],
-               ),
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      value: horaSeleccionada1,
+                      hint: Text("Hora de inicio del horario:"),
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
+                        hintText: 'Seleccione una hora de inicio del horario',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      items: opcionesHora.map((String hora1) {
+                        return DropdownMenuItem<String>(
+                          value: hora1,
+                          child: Text(hora1),
+                        );
+                      }).toList(),
+                      onChanged: (String? nuevoValor) {
+                        setState(() {
+                          horaSeleccionada1 = nuevoValor;
+                          horaSeleccionada2 = null;
+                        });
+                      },
+                      validator: (value) => value == null
+                          ? 'Por favor, selecciona una hora'
+                          : null,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      value: horaSeleccionada2,
+                      hint: Text("Hora de fin del horario:"),
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
+                        hintText: 'Seleccione una hora de fin del horario',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      items: opcionesHoras2.map((String hora2) {
+                        return DropdownMenuItem<String>(
+                          value: hora2,
+                          child: Text(hora2),
+                        );
+                      }).toList(),
+                      onChanged: horaSeleccionada1 == null
+                          ? null
+                          : (String? nuevoValor) {
+                              setState(() {
+                                horaSeleccionada2 = nuevoValor;
+                              });
+                            },
+                      validator: (value) => value == null
+                          ? 'Por favor, selecciona una hora'
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
               SizedBox(height: 24),
               _buildSubmitButton(),
             ],
@@ -622,10 +670,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
           Expanded(
             child: Text(
               'La ubicación exacta se determinará automáticamente a partir de la dirección proporcionada',
-              style: TextStyle(
-                color: Colors.green[700],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.green[700], fontSize: 14),
             ),
           ),
         ],
@@ -664,7 +709,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                 },
                 hintText: 'Ej: 123',
                 keyboardType: TextInputType.text,
-                validator: (value) => value!.isEmpty ? 'Ingresa el número' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Ingresa el número' : null,
               ),
             ),
             SizedBox(width: 16),
@@ -677,7 +723,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                   setState(() {});
                 },
                 hintText: 'Ej: Centro',
-                validator: (value) => value!.isEmpty ? 'Ingresa la colonia' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Ingresa la colonia' : null,
               ),
             ),
           ],
@@ -713,7 +760,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
     final calle = _calleController.text.trim();
     final numero = _numeroController.text.trim();
     final colonia = _coloniaController.text.trim();
-    final puedeValidar = calle.isNotEmpty && numero.isNotEmpty && colonia.isNotEmpty;
+    final puedeValidar =
+        calle.isNotEmpty && numero.isNotEmpty && colonia.isNotEmpty;
 
     return Container(
       padding: EdgeInsets.all(12),
@@ -741,7 +789,10 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                 : Icon(Icons.search),
             label: Text(
               _geocodificandoPreview ? 'Buscando...' : 'Buscar Dirección',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -753,10 +804,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
             SizedBox(height: 12),
             Text(
               'Verificando dirección...',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
           ],
           if (_ubicacionPreview != null && _direccionValida) ...[
@@ -796,7 +844,10 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
                     icon: Icon(Icons.map, color: Colors.white),
                     label: Text(
                       'Ajustar en Mapa',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -810,10 +861,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
             SizedBox(height: 8),
             Text(
               'Completa los campos: Calle, Número y Colonia',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
           ],
         ],
@@ -856,10 +904,12 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
         _direccionValida = true;
         _geocodificandoPreview = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Dirección encontrada. Puedes ajustarla en el mapa si lo deseas.'),
+          content: Text(
+            'Dirección encontrada. Puedes ajustarla en el mapa si lo deseas.',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -869,7 +919,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
         _geocodificandoPreview = false;
         _direccionValida = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al buscar la dirección: $e'),
@@ -881,7 +931,7 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
 
   void _mostrarMapaPreview() {
     if (_ubicacionPreview == null) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => MapaUbicacionWidget(
@@ -899,14 +949,13 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
               longitud: lon,
               precision: 'ajustada-usuario',
             );
-            
+
             // Si la dirección reverse trae componentes válidos, actualizar campos
-            if (direccion != null && 
-                direccion.calle != null && 
+            if (direccion != null &&
+                direccion.calle != null &&
                 direccion.calle!.isNotEmpty &&
                 !direccion.calle!.contains('Desconocida') &&
                 !direccion.calle!.contains('Error')) {
-              
               // Solo actualizar si el componente tiene contenido significativo
               if (direccion.calle!.isNotEmpty) {
                 _calleController.text = direccion.calle!;
@@ -914,12 +963,12 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
               if (direccion.numero != null && direccion.numero!.isNotEmpty) {
                 _numeroController.text = direccion.numero!;
               }
-              if (direccion.colonia != null && 
+              if (direccion.colonia != null &&
                   direccion.colonia!.isNotEmpty &&
                   !direccion.colonia!.contains('Desconocida')) {
                 _coloniaController.text = direccion.colonia!;
               }
-              
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Dirección actualizada desde el mapa'),
@@ -931,7 +980,9 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
               // Si no hay dirección válida, solo mostrar que se actualizó la ubicación
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Ubicación actualizada. Ingresa los datos de dirección manualmente.'),
+                  content: Text(
+                    'Ubicación actualizada. Ingresa los datos de dirección manualmente.',
+                  ),
                   duration: Duration(seconds: 2),
                   backgroundColor: Colors.amber,
                 ),
@@ -1029,7 +1080,11 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
             ),
             child: Text(
               'Enviar Solicitud',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           );
   }
@@ -1054,7 +1109,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
     );
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    horario = '${diaSeleccionado1} a ${diaSeleccionado2} : ${horaSeleccionada1} - ${horaSeleccionada2}';
+    horario =
+        '${diaSeleccionado1} a ${diaSeleccionado2} : ${horaSeleccionada1} - ${horaSeleccionada2}';
     final solicitud = SolicitudPunto(
       id: '',
       nombre: _nombreController.text,
@@ -1063,7 +1119,8 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
       tipoMaterial: _tiposSeleccionados,
       telefono: _telefonoController.text,
       horario: horario,
-      usuarioSolicitante: authProvider.userName!, // Usar el nombre real del usuario
+      usuarioSolicitante:
+          authProvider.userName!, // Usar el nombre real del usuario
       estado: 'pendiente',
       fechaCreacion: DateTime.now(),
     );
@@ -1072,10 +1129,12 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
       // CAMBIO CLAVE: Esperar ServiceResponse en lugar de bool
       final response = await _solicitudesService.crearSolicitud(
         solicitud,
-        ubicacion: _ubicacionPreview != null ? {
-          'latitud': _ubicacionPreview!.latitud,
-          'longitud': _ubicacionPreview!.longitud,
-        } : null,
+        ubicacion: _ubicacionPreview != null
+            ? {
+                'latitud': _ubicacionPreview!.latitud,
+                'longitud': _ubicacionPreview!.longitud,
+              }
+            : null,
         userName: authProvider.userName!,
         isAdmin: authProvider.isAdmin,
       );
@@ -1086,7 +1145,9 @@ class _NuevaSolicitudPuntoScreenState extends State<NuevaSolicitudPuntoScreen> {
         Navigator.pop(context, true);
       } else {
         // Usamos el mensaje de error del ServiceResponse
-        throw Exception(response.errorMessage ?? 'Error desconocido al enviar la solicitud');
+        throw Exception(
+          response.errorMessage ?? 'Error desconocido al enviar la solicitud',
+        );
       }
     } catch (e) {
       // Mostrar el mensaje detallado, quitando el prefijo "Exception: " si existe
