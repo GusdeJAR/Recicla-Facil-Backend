@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _descargarAplicacion() {
     // URL directa para descarga del APK desde Google Drive
     final apkUrl =
-        'https://drive.google.com/uc?export=download&id=1AlOyzI_qJ6bTqMyeh5C_HPp0AiJKjewA';
+          'https://drive.google.com/uc?export=download&id=1VulKqV6S1_7-xEMUXk26T_EJ8DpAS3IU';
 
     // Crear un elemento anchor temporal para forzar la descarga
     final anchor = html.AnchorElement(href: apkUrl)
@@ -219,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(height: 20),
 
                       // Botón para descargar Aplicacion solo en web
-                      /*if (identical(0, 0.0))
+                      if (identical(0, 0.0))
                         // kIsWeb
                         SizedBox(
                           width: double.infinity,
@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-*/
+
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
