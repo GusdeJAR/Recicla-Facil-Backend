@@ -31,24 +31,24 @@ import '../services/queja_service.dart';
       @override
       void initState(){
         super.initState();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Obtén la instancia del AuthProvider
-          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-          // Comprueba si el usuario está logueado y actualiza el estado
-          if (authProvider.isLoggedIn) {
-            setState(() {
-              _emailDelUsuario = authProvider.userEmail;
-            });
-          }
-        });
+        // Comprueba si el usuario está logueado y actualiza el email
+        // Solo lo hacemos si el email aún no ha sido seteado.
+        if (_emailDelUsuario == null && authProvider.isLoggedIn) {
+          _emailDelUsuario = authProvider.userEmail;
+        }
+
       }
 
       // --- PASO 2: Implementar la lógica de envío completa ---
       Future<void> _enviar() async {
         // Validar ambos campos del formulario
-        if (!_formKey.currentState!.validate()) return;
-        if (_emailDelUsuario == null) {
+        final form = _formKey.currentState;
+        if (form == null || !form.validate()) {
+          // Si el estado del formulario no existe o la validación falla, no continuamos.
+          return;
+        }        if (_emailDelUsuario == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: No se pudo identificar al usuario. Por favor, inicia sesión de nuevo.'), backgroundColor: Colors.red),
           );

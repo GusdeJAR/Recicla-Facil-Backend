@@ -152,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             ListTile(
-              leading: Icon(Icons.person),
+              leading: Icon(Icons.pin_drop),
               title: Text('Puntos de reciclaje'),
               selected: _currentIndex == 0,
               selectedTileColor: Colors.green.withOpacity(0.1),
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.subject),
+              leading: Icon(Icons.info),
               title: Text('Contenido educativo'),
               selected: _currentIndex == 1,
               selectedTileColor: Colors.green.withOpacity(0.1),
@@ -172,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.info),
+              leading: Icon(Icons.subject),
               title: Text('Quejas y sugerencias'),
               selected: _currentIndex == 2,
               selectedTileColor: Colors.green.withOpacity(0.1),
@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.pin_drop),
+              leading: Icon(Icons.person),
               title: Text('Usuario'),
               selected: _currentIndex == 3,
               selectedTileColor: Colors.green.withOpacity(0.1),

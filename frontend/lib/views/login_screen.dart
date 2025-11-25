@@ -219,7 +219,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(height: 20),
 
                       // Botón para descargar Aplicacion solo en web
-                      if (identical(0, 0.0)) // kIsWeb
+                      /*if (identical(0, 0.0))
+                        // kIsWeb
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -233,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-
+*/
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -253,7 +254,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(height: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushReplacementNamed(
+                              Navigator.pushNamed(
                                 context,
                                 '/register',
                               );
