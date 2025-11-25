@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
+import '../../models/cloudinary_image.dart';
 import '../../services/contenido_edu_service.dart';
 
 class AgregarContenidoScreen extends StatefulWidget {
@@ -63,22 +67,7 @@ class _AgregarContenidoScreenState extends State<AgregarContenidoScreen> {
   /// Simula la subida de una imagen a un servicio de almacenamiento
   /// y devuelve una URL de ejemplo.
   /// En una app real, aquí llamarías a Firebase Storage, Cloudinary, etc.
-  Future<String> _subirImagen(dynamic imagen) async {
-    // Simula subida; acepta XFile u otros objetos de archivo
-    await Future.delayed( Duration(seconds: 1));
-    try {
-      String pathOrName = '';
-      if (imagen is XFile) {
-        pathOrName = imagen.name;
-      } else if (imagen != null) {
-        pathOrName = imagen.path ?? '';
-      }
-      debugPrint('Subiendo imagen: $pathOrName');
-    } catch (_) {
-      debugPrint('Subiendo imagen (unknown)');
-    }
-    return 'https://via.placeholder.com/600x400.png/00A97F/FFFFFF?Text=ReciclaFacil';
-  }
+
 
   Future<void> _agregarContenido() async {
     if (!_formKey.currentState!.validate()) {
@@ -109,21 +98,41 @@ class _AgregarContenidoScreenState extends State<AgregarContenidoScreen> {
 
     setState(() => _estaCargando = true);
     try {
+      // 1. 🚀 SUBIDA DE IMÁGENES A CLOUDINARY
+      // Mapeamos el array de XFile a un array de Promesas de subida
+      final uploadPromises = _imagenesSeleccionadas.map((imagen) => ContenidoEduService.subirImagen(imagen)).toList();
+
+      // Esperamos a que todas las subidas terminen
+      final List<CloudinaryImage> imagenesCloudinary = await Future.wait(uploadPromises);
+
+      // 2. PREPARACIÓN DE DATOS PARA EL BACKEND (Serialización JSON)
+      final imagenesPreSubidasList = imagenesCloudinary.map((img) => img.toJson()).toList();
+
+      // Convertimos la lista de mapas a un String JSON
+      final String imagenesPreSubidasJson = json.encode(imagenesPreSubidasList);
+
+      // 3. PREPARACIÓN DE CAMPOS DE TEXTO/ARRAYS
       final puntosClave = _puntosClaveController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
       final etiquetas = _etiquetasController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
+      // 4. LLAMADA AL SERVICIO (usando el nuevo campo imagenesPreSubidas)
       final response = await _contenidoService.crearContenidoEducativo(
         titulo: _tituloController.text,
         descripcion: _descripcionController.text,
         contenido: _contenidoController.text,
         categoria: catSelect,
         tipoMaterial: materialSelect,
-        imagenes: _imagenesSeleccionadas,
+
+        // 🆕 Enviar el nuevo campo JSON que el backend espera
+        imagenesPreSubidas: imagenesPreSubidasJson,
+
         puntosClave: puntosClave,
         accionesCorrectas: [],
         accionesIncorrectas: [],
         etiquetas: etiquetas,
         publicado: true,
+
+        // El backend necesita el índice de la imagen principal como string
         imgPrincipal: _imagenPrincipalIndex!,
       );
 

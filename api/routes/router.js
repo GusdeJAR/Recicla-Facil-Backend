@@ -2,6 +2,7 @@ const express = require('express');
 const router=express.Router();
 const controlador=require('../controllers/controlador');
 const upload = require('../config/multer.config');
+const cloudinary = require('../config/cloudinary');
 
 router.get('/test', (req, res) => {
   console.log(">>> ÉXITO: La ruta GET /test ha sido alcanzada en router.js.");
@@ -18,6 +19,7 @@ router.post('/usuarios/login', controlador.loginUsuario);
 router.put('/usuarios/:email', controlador.actualizarUsuario);
 router.delete('/usuarios/:email', controlador.eliminarUsuario);
 router.post('/usuarios/cambiar-password', controlador.cambiarPassword);
+router.post('/usuarios/recuperar-password', controlador.recuperarPassword);
 
 // =========================================================================
 // RUTAS DE QUEJAS

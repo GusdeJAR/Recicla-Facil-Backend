@@ -6,10 +6,58 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../models/cloudinary_image.dart';
 import '../models/contenido_educativo.dart';
 
 class ContenidoEduService {
   static String apiBaseUrl = 'https://recicla-facil-backend.vercel.app';
+
+
+  static Future<CloudinaryImage> subirImagen(XFile imagen) async {
+    // 1. Define tus credenciales y preset (ESTO NO DEBE IR EN UN ENTORNO DE PRODUCCIÓN,
+    // USA VARIABLES DE ENTORNO O EL SDK DE CLOUDINARY PARA GESTIONAR ESTO)
+    const String CLOUD_NAME = 'dugacfyo1';
+    const String UPLOAD_PRESET = 'subida-movil';
+
+    final uri = Uri.parse('https://api.cloudinary.com/v1_1/$CLOUD_NAME/image/upload');
+
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = UPLOAD_PRESET;
+
+    // 2. LECTURA UNIVERSAL DE BYTES
+    // Este es el paso clave. readAsBytes() funciona en Web y Móvil/Desktop.
+    final fileBytes = await imagen.readAsBytes();
+
+    // 3. Adjuntar el archivo usando fromBytes (compatible con la Web)
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file', // Clave requerida por Cloudinary
+        fileBytes,
+        filename: imagen.name, // Usamos el nombre del archivo
+      ),
+    );
+
+    // 4. Enviar la solicitud y procesar la respuesta
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode != 200) {
+        // Si recibes un error 400/500 aquí, es un problema de CLOUD_NAME o PRESET
+        throw Exception('Fallo en la subida a Cloudinary: ${response.body}');
+      }
+
+      final Map<String, dynamic> data = json.decode(response.body);
+
+      return CloudinaryImage(
+        ruta: data['secure_url'],
+        publicId: data['public_id'],
+      );
+    } catch (e) {
+      debugPrint('Error en la subida a Cloudinary: $e');
+      throw Exception('Error al subir la imagen: ${e.toString()}');
+    }
+  }
 
   // ===================================================================
   // 1. OBTENER TODO EL CONTENIDO EDUCATIVO
@@ -82,116 +130,62 @@ class ContenidoEduService {
     required String contenido,
     required String categoria,
     required String tipoMaterial,
-    required List<dynamic> imagenes, // Dinámico para soportar File (móvil) y File web
+
+    // 🆕 Cambiado de List<XFile> a String JSON
+    required String imagenesPreSubidas,
+
     required List<String> puntosClave,
     required List<String> accionesCorrectas,
     required List<String> accionesIncorrectas,
     required List<String> etiquetas,
-    bool publicado = false,
+    required bool publicado,
     required int imgPrincipal,
   }) async {
-    final url = Uri.parse('$apiBaseUrl/api/contenido-educativo/');
-    debugPrint('ContenidoEduService - Subiendo contenido a: $url');
 
-    // Crear solicitud multipart
-    final request = http.MultipartRequest('POST', url);
+    final uri = Uri.parse('$apiBaseUrl/api/contenido-educativo/');
 
-    // ===== CAMPOS DE TEXTO =====
-    request.fields['titulo'] = titulo;
-    request.fields['descripcion'] = descripcion;
-    request.fields['contenido'] = contenido;
-    request.fields['categoria'] = categoria;
-    request.fields['tipo_material'] = tipoMaterial;
-    request.fields['publicado'] = publicado.toString();
+    // 1. Preparamos el cuerpo de la solicitud como un mapa de Strings
+    final body = {
+      'titulo': titulo,
+      'descripcion': descripcion,
+      'contenido': contenido,
+      'categoria': categoria,
+      'tipo_material': tipoMaterial,
 
-    // Listas codificadas como JSON string
-    request.fields['puntos_clave'] = jsonEncode(puntosClave);
-    request.fields['acciones_correctas'] = jsonEncode(accionesCorrectas);
-    request.fields['acciones_incorrectas'] = jsonEncode(accionesIncorrectas);
-    request.fields['etiquetas'] = jsonEncode(etiquetas);
-    request.fields['img_principal'] = imgPrincipal.toString();
+      // 2. Enviamos el String JSON de imágenes
+      'imagenes_pre_subidas': imagenesPreSubidas,
 
+      // 3. El backend espera todos los arrays como Strings JSON
+      'puntos_clave': json.encode(puntosClave),
+      'acciones_correctas': json.encode(accionesCorrectas),
+      'acciones_incorrectas': json.encode(accionesIncorrectas),
+      'etiquetas': json.encode(etiquetas),
 
-
-    // ===== ARCHIVOS =====
-    for (var i = 0; i < imagenes.length; i++) {
-      final file = imagenes[i];
-
-      // En web, usar bytes; en móvil, usar fromPath
-      if (kIsWeb) {
-        // Para web, leer los bytes del archivo
-        final bytes = await file.readAsBytes();
-
-        // Intentar obtener mime type desde los bytes
-        String? mimeType = lookupMimeType('', headerBytes: bytes);
-        // Derivar extensión segura si el nombre no la contiene
-        String filename = '';
-  if (file is XFile) filename = file.name;
-        if (filename.isEmpty) {
-          final ext = (mimeType != null && mimeType.contains('/')) ? mimeType.split('/').last : 'jpg';
-          filename = 'imagen_$i.$ext';
-        }
-
-        MediaType? mediaType;
-        if (mimeType != null && mimeType.contains('/')) {
-          final parts = mimeType.split('/');
-          mediaType = MediaType(parts[0], parts[1]);
-        }
-
-        final multipartFile = http.MultipartFile.fromBytes(
-          'imagenes',
-          bytes,
-          filename: filename,
-          contentType: mediaType,
-        );
-        request.files.add(multipartFile);
-      } else {
-        // Para móvil, usar fromPath
-        final multipartFile = await http.MultipartFile.fromPath(
-          'imagenes',
-          file.path,
-        );
-        request.files.add(multipartFile);
-      }
-    }
+      // 4. Enviamos booleanos/números como Strings
+      'publicado': publicado.toString(),
+      'img_principal': imgPrincipal.toString(),
+    };
 
     try {
-      // Enviar la solicitud con timeout
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 20));
-      final response = await http.Response.fromStream(streamedResponse);
+      // Usaremos http.post y content-type application/json o x-www-form-urlencoded
+      // Si tu backend usa body-parser con x-www-form-urlencoded, usa http.post
+      final response = await http.post(
+        uri,
+        // Usamos codificación JSON ya que estamos enviando un cuerpo estructurado
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
 
-      // Loguear status y body para facilitar debugging
-      debugPrint('ContenidoEduService - upload status: ${response.statusCode}');
-      debugPrint('ContenidoEduService - upload body: ${response.body}');
+      final responseBody = json.decode(response.body);
 
-      // Intentar parsear JSON solo si el servidor devolvió un 2xx
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        try {
-          final Map<String, dynamic> data = json.decode(response.body);
-          data['statusCode'] = response.statusCode;
-          return data;
-        } catch (e) {
-          // Respuesta 2xx pero no es JSON
-          return {
-            'statusCode': response.statusCode,
-            'body': response.body,
-          };
-        }
+      if (response.statusCode == 201) {
+        return {'statusCode': 201, 'contenido': responseBody.containsKey('contenido') ? responseBody['contenido'] : null};
+      } else {
+        return {'statusCode': response.statusCode, 'mensaje': responseBody['mensaje'] ?? 'Error al crear contenido'};
       }
 
-      // En caso de error (4xx/5xx) intentar extraer mensaje JSON, si no, devolver body crudo
-      try {
-        final Map<String, dynamic> errorData = json.decode(response.body);
-        errorData['statusCode'] = response.statusCode;
-        throw Exception('Error al subir contenido: ${response.statusCode} - ${errorData}');
-      } catch (_) {
-        throw Exception('Error al subir contenido: ${response.statusCode} - ${response.body}');
-      }
-    } on TimeoutException {
-      throw Exception('Tiempo de espera agotado. Revisa tu conexión.');
     } catch (e) {
-      // Añadir más contexto al error para facilitar debugging en la app
-      throw Exception('Error al subir contenido: ${e.toString()}');
+      return {'statusCode': 500, 'mensaje': 'Error de conexión: $e'};
     }
   }
 
@@ -200,110 +194,76 @@ class ContenidoEduService {
   // ===================================================================
   Future<Map<String, dynamic>> actualizarContenidoEducativo({
     required String id,
-    String? titulo,
-    String? descripcion,
-    String? contenido,
-    String? categoria,
-    String? tipoMaterial,
-    List<String>? puntosClave,
-    List<String>? accionesCorrectas,
-    List<String>? accionesIncorrectas,
-    List<String>? etiquetas,
-    bool? publicado,
-    int? imgPrincipal,
-    required List<dynamic> nuevasImagenes, // Dinámico para soportar File (móvil) y File web
-    List<String>? idsImagenesAEliminar,
+    required String titulo,
+    required String descripcion,
+    required String contenido,
+    required String categoria,
+    required String tipoMaterial,
+    required List<String> puntosClave,
+    required List<String> etiquetas,
+
+    // 🆕 Parámetros para la nueva lógica de imágenes
+    String? imagenesAnadidasPreSubidas, // String JSON de las NUEVAS URLs/IDs
+    List<String>? idsImagenesAEliminar, // Lista de public_id a borrar
+    String? imgPrincipalRuta,           // URL de la imagen que DEBE ser la principal
+    bool? publicado, // Si se gestiona la publicación en la edición
+
   }) async {
-    final url = Uri.parse('$apiBaseUrl/api/contenido-educativo/$id');
-    debugPrint('ContenidoEduService - Actualizando contenido (multipart) en: $url');
 
-    // Crear solicitud multipart, usando PUT para actualización
-    final request = http.MultipartRequest('PUT', url);
+    final uri = Uri.parse('$apiBaseUrl/api/contenido-educativo/$id');
 
-    // ===== CAMPOS DE TEXTO (SOLO SI NO SON NULOS) =====
-    if (titulo != null) request.fields['titulo'] = titulo;
-    if (descripcion != null) request.fields['descripcion'] = descripcion;
-    if (contenido != null) request.fields['contenido'] = contenido;
-    if (categoria != null) request.fields['categoria'] = categoria;
-    if (tipoMaterial != null) request.fields['tipo_material'] = tipoMaterial;
-    if (publicado != null) request.fields['publicado'] = publicado.toString();
-    if (imgPrincipal != null) request.fields['img_principal'] = imgPrincipal.toString();
+    // 1. Preparamos el cuerpo de la solicitud (body)
+    final Map<String, dynamic> body = {
+      'titulo': titulo,
+      'descripcion': descripcion,
+      'contenido': contenido,
+      'categoria': categoria,
+      'tipo_material': tipoMaterial,
 
-    // ===== LISTAS (CODIFICADAS COMO JSON) =====
-    if (puntosClave != null) request.fields['puntos_clave'] = jsonEncode(puntosClave);
-    if (accionesCorrectas != null) request.fields['acciones_correctas'] = jsonEncode(accionesCorrectas);
-    if (accionesIncorrectas != null) request.fields['acciones_incorrectas'] = jsonEncode(accionesIncorrectas);
-    if (etiquetas != null) request.fields['etiquetas'] = jsonEncode(etiquetas);
-    if (idsImagenesAEliminar != null) request.fields['ids_imagenes_a_eliminar'] = jsonEncode(idsImagenesAEliminar);
+      // Enviamos arrays como Strings JSON
+      'puntos_clave': json.encode(puntosClave),
+      'etiquetas': json.encode(etiquetas),
 
-    // ===== NUEVOS ARCHIVOS DE IMAGEN =====
-    var idx = 0;
-    for (var file in nuevasImagenes) {
-      if (kIsWeb) {
-        final bytes = await file.readAsBytes();
-        String? mimeType = lookupMimeType('', headerBytes: bytes);
-        String filename = '';
-  if (file is XFile) filename = file.name;
-        if (filename.isEmpty) {
-          final ext = (mimeType != null && mimeType.contains('/')) ? mimeType.split('/').last : 'jpg';
-          filename = 'imagen_$idx.$ext';
-        }
+      // 2. Parámetros de la Lógica de Imágenes
 
-        MediaType? mediaType;
-        if (mimeType != null && mimeType.contains('/')) {
-          final parts = mimeType.split('/');
-          mediaType = MediaType(parts[0], parts[1]);
-        }
+      // IDs a borrar: El backend los usa para eliminar de Cloudinary y filtrar de la BD
+      if (idsImagenesAEliminar != null && idsImagenesAEliminar.isNotEmpty)
+        'ids_imagenes_a_eliminar': json.encode(idsImagenesAEliminar),
 
-        final multipartFile = http.MultipartFile.fromBytes(
-          'imagenes',
-          bytes,
-          filename: filename,
-          contentType: mediaType,
-        );
-        request.files.add(multipartFile);
-      } else {
-        final multipartFile = await http.MultipartFile.fromPath(
-          'imagenes',
-          file.path,
-        );
-        request.files.add(multipartFile);
-      }
-      idx++;
-    }
+      // Nuevas imágenes: El backend las usa para añadir al array de la BD
+      if (imagenesAnadidasPreSubidas != null)
+        'imagenes_a_agregar_pre_subidas': imagenesAnadidasPreSubidas,
+
+      // Ruta de la imagen principal: El backend la usa para actualizar el flag es_principal
+      if (imgPrincipalRuta != null)
+        'img_principal_ruta': imgPrincipalRuta,
+
+      // Estado de publicación (si aplica)
+      if (publicado != null)
+        'publicado': publicado.toString(),
+    };
 
     try {
-      // Enviar la solicitud
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
-      final response = await http.Response.fromStream(streamedResponse);
+      // 3. Ejecución de la solicitud HTTP (PUT)
+      final response = await http.put(
+        uri,
+        // Usamos content-type application/json ya que no enviamos archivos, solo texto y JSON string
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
 
-      // Loguear para depuración
-      debugPrint('ContenidoEduService - update status: ${response.statusCode}');
-      debugPrint('ContenidoEduService - update body: ${response.body}');
+      final responseBody = json.decode(response.body);
 
-      // Manejar la respuesta, similar al método de creación
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        try {
-          final Map<String, dynamic> data = json.decode(response.body);
-          data['statusCode'] = response.statusCode;
-          return data;
-        } catch (e) {
-          return {'statusCode': response.statusCode, 'body': response.body};
-        }
+      if (response.statusCode == 200) {
+        return {'statusCode': 200, 'contenido': responseBody.containsKey('contenido') ? responseBody['contenido'] : null};
+      } else {
+        // En caso de fallo, devolvemos el código y el mensaje de error del backend
+        return {'statusCode': response.statusCode, 'mensaje': responseBody['mensaje'] ?? 'Error al actualizar contenido'};
       }
 
-      // En caso de error, intentar extraer el mensaje
-      try {
-        final Map<String, dynamic> errorData = json.decode(response.body);
-        errorData['statusCode'] = response.statusCode;
-        throw Exception('Error al actualizar contenido: ${response.statusCode} - ${errorData}');
-      } catch (_) {
-        throw Exception('Error al actualizar contenido: ${response.statusCode} - ${response.body}');
-      }
-    } on TimeoutException {
-      throw Exception('Tiempo de espera agotado al actualizar. Revisa tu conexión.');
     } catch (e) {
-      throw Exception('Error al actualizar contenido: ${e.toString()}');
+      // Error de red o parseo
+      return {'statusCode': 500, 'mensaje': 'Error de conexión o fallo al procesar la respuesta: ${e.toString()}'};
     }
   }
 

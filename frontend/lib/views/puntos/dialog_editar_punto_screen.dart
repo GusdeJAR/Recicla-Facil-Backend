@@ -49,7 +49,16 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
     super.initState();
     _nombreController = TextEditingController(text: widget.punto.nombre);
     _descripcionController = TextEditingController(text: widget.punto.descripcion);
-    _tiposSeleccionados = List<String>.from(widget.punto.tipoMaterial);    _telefonoController = TextEditingController(text: widget.punto.telefono);
+    _tiposSeleccionados = List<String>.from(widget.punto.tipoMaterial);
+    final String telefonoLimpio = widget.punto.telefono.replaceAll(RegExp(r'\D'), '');
+    String telefonoFormateado = telefonoLimpio;
+    if (telefonoLimpio.length == 10) {
+      telefonoFormateado =
+          '${telefonoLimpio.substring(0, 3)} ' +
+              '${telefonoLimpio.substring(3, 6)} ' +
+              '${telefonoLimpio.substring(6, 10)}';
+    }
+    _telefonoController = TextEditingController(text: telefonoFormateado);
     _parsearHorarioInicial(widget.punto.horario);
     if (diaSeleccionado2 != null && !getOpcionesDias2().contains(diaSeleccionado2)) {
       diaSeleccionado2 = null;
@@ -124,16 +133,17 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
   Future<void> _submitForm() async {
     final esFormularioValido = _formKey.currentState?.validate() ?? false;
     final sonMaterialesValidos = _tiposSeleccionados.isNotEmpty;
-
+    final String telefonoLimpio = _telefonoController.text.replaceAll(RegExp(r'\D'), '');
     if (esFormularioValido && sonMaterialesValidos) {
       setState(() => _estaCargando = true);
 
-      final nuevoHorario = '${diaSeleccionado1 ?? ''} a ${diaSeleccionado2 ?? ''} : ${horaSeleccionada1 ?? ''} - ${horaSeleccionada2 ?? ''}';      final bool exito = await PuntosReciclajeService.actualizarPuntoReciclaje(
+      final nuevoHorario = '${diaSeleccionado1 ?? ''} a ${diaSeleccionado2 ?? ''} : ${horaSeleccionada1 ?? ''} - ${horaSeleccionada2 ?? ''}';
+      final bool exito = await PuntosReciclajeService.actualizarPuntoReciclaje(
         puntoId: widget.punto.id,
         nombre: _nombreController.text,
         descripcion: _descripcionController.text,
-        tipo_material: _tiposSeleccionados, // <-- Cambio clave
-        telefono: _telefonoController.text,
+        tipo_material: _tiposSeleccionados,
+        telefono: telefonoLimpio,
         horario: nuevoHorario,
       );
 
@@ -238,12 +248,14 @@ class _DialogoEditarPuntoState extends State<DialogoEditarPunto> {
                       keyboardType: TextInputType.phone,
                         validator: (value) {
                           if (value!.isEmpty) return 'Ingresa un teléfono de contacto';
-                          if (value.length < 10) {
-                            return 'El número de teléfono no puede ser menor a diez cifras';
+                          final String cleanValue = value.replaceAll(RegExp(r'\D'), '');
+                          if (cleanValue.length < 10) {
+                            return 'El número de teléfono debe ser de 10 dígitos (actual: ${cleanValue.length}).';
                           }
-                          if (value.length > 10) {
-                            return 'El número de teléfono no puede ser mayor a diez cifras';
+                          if (cleanValue.length > 10) {
+                            return 'El número de teléfono no puede ser mayor a diez cifras (actual: ${cleanValue.length}).';
                           }
+                          return null;
                         }
                     ),
                     SizedBox(height: 16),

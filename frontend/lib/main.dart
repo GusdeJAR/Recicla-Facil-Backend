@@ -4,6 +4,7 @@ import 'package:rf_sprint1/providers/auth_provider.dart';
 import 'package:rf_sprint1/providers/puntos_provider.dart';
 import 'package:rf_sprint1/providers/solicitudes_provider.dart';
 import 'package:rf_sprint1/views/contenido/contenido_tabs_screen.dart';
+import 'package:rf_sprint1/views/forgot_password_screen.dart';
 
 // Importa tus vistas y providers
 import 'package:rf_sprint1/views/perfil/perfilUsuario_screen.dart';
@@ -63,7 +64,8 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => ProfileScreen(),
         '/quejas': (context) => QuejasTabsScreen(),
         '/contenido-educativo': (context) => ContenidoScreen(),
-        '/puntos-reciclaje': (context) => PuntosTabsScreen()
+        '/puntos-reciclaje': (context) => PuntosTabsScreen(),
+        '/forgot-password': (context) => ForgotPasswordScreen(),
       },
     );
   }
@@ -81,10 +83,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   final List<String> _pageTitles = [
-    "Usuario",
-    "Quejas y sugerencias",
-    'Contenido educativo',
     'Puntos de reciclaje',
+    'Contenido educativo',
+    "Quejas y sugerencias",
+    "Usuario",
   ];
 
   void _onItemTapped(int index) {
@@ -105,15 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCurrentPage() {
     switch (_currentIndex) {
       case 0:
-        return ProfileScreen();
-      case 1:
-        return QuejasTabsScreen();
-      case 2:
-        return ContenidoScreen();
-      case 3:
         return PuntosTabsScreen();
-      default:
+      case 1:
+        return ContenidoScreen();
+      case 2:
+        return QuejasTabsScreen();
+      case 3:
         return ProfileScreen();
+      default:
+        return PuntosTabsScreen();
     }
   }
 
@@ -151,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: Icon(Icons.person),
-              title: Text('Usuario'),
+              title: Text('Puntos de reciclaje'),
               selected: _currentIndex == 0,
               selectedTileColor: Colors.green.withOpacity(0.1),
               selectedColor: Colors.green,
@@ -161,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: Icon(Icons.subject),
-              title: Text('Quejas y sugerencias'),
+              title: Text('Contenido educativo'),
               selected: _currentIndex == 1,
               selectedTileColor: Colors.green.withOpacity(0.1),
               selectedColor: Colors.green,
@@ -171,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: Icon(Icons.info),
-              title: Text('Contenido educativo'),
+              title: Text('Quejas y sugerencias'),
               selected: _currentIndex == 2,
               selectedTileColor: Colors.green.withOpacity(0.1),
               selectedColor: Colors.green,
@@ -181,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: Icon(Icons.pin_drop),
-              title: Text('Puntos de reciclaje'),
+              title: Text('Usuario'),
               selected: _currentIndex == 3,
               selectedTileColor: Colors.green.withOpacity(0.1),
               selectedColor: Colors.green,

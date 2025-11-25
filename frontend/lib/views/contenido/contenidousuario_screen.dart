@@ -18,27 +18,73 @@ class _ContenidoUsuarioScreenState extends State<ContenidoUsuarioScreen> {
   late Future<List<ContenidoEducativo>> _contenidosFuture;
 
   final TextEditingController _busquedaController = TextEditingController();
-  TipoBusqueda _tipoBusquedaSeleccionada = TipoBusqueda.porTermino; // Valor por defecto
+  final List<String> _opcionesTipoBusqueda = [
+    'Término (título, desc., etiqueta)',
+    'Categoría',
+    'Tipo de Material', // Añadí esta para que coincida con tu lógica
+    // Agrega más tipos si los necesitas
+  ];
+  String? _tipoBusquedaSeleccionada;
+  List <String> opcionesCategoria = ['tipos-materiales', 'proceso-reciclaje', 'consejos-practicos', 'preparacion-materiales'];
+  List <String> opcionesMaterial = ['todos', 'aluminio', 'cartón', 'papel', 'pet', 'vidrio'];
+  String? categoriaSeleccionada;
+  String? materialSeleccionado;
 
   @override
   void initState() {
     super.initState();
-    _contenidosFuture = _cargarContenido();
+    _tipoBusquedaSeleccionada = _opcionesTipoBusqueda[0];
+      _contenidosFuture = _cargarContenido();
   }
 
-  Future <List<ContenidoEducativo>> _cargarContenido() async{
-    if (_busquedaController.text.isEmpty) {
-      return _contenidoService.obtenerContenidoEducativo();
-    } else {
-      final termino = _busquedaController.text;
-      switch (_tipoBusquedaSeleccionada) {
-        case TipoBusqueda.porTermino:
+  Future<List<ContenidoEducativo>> _cargarContenido() async {
+    // El switch ahora se convierte en el "director de orquesta" principal.
+    switch (_tipoBusquedaSeleccionada) {
+      case 'Término (título, desc., etiqueta)':
+      // Si la búsqueda es por término, solo nos importa el TextField.
+        final termino = _busquedaController.text.trim();
+        if (termino.isEmpty) {
+          // Si el campo de texto está vacío, obtenemos todo.
+          print('Cargando todo el contenido...');
+          return _contenidoService.obtenerContenidoEducativo();
+        } else {
+          // Si hay texto, buscamos por ese término.
+          print('Buscando por término: $termino');
           return _contenidoService.buscarContenidoEducativo(termino);
-        case TipoBusqueda.porCategoria:
-          return _contenidoService.obtenerContenidoPorCategoria(termino);
-        case TipoBusqueda.porTipoMaterial:
-          return _contenidoService.obtenerContenidoPorTipoMaterial(termino);
-      }
+        }
+
+      case 'Categoría':
+      // Si la búsqueda es por categoría, solo nos importa el Dropdown de categoría.
+        final categoria = categoriaSeleccionada;
+        if (categoria == null || categoria.isEmpty) {
+          // Si no se ha seleccionado ninguna categoría, devolvemos todo
+          // o una lista vacía para no mostrar nada hasta que se seleccione.
+          // Devolver todo es más amigable.
+          print('Cargando todo (ninguna categoría seleccionada)...');
+          return _contenidoService.obtenerContenidoEducativo();
+        } else {
+          // Si hay una categoría seleccionada, la usamos para buscar.
+          print('Buscando por categoría: $categoria');
+          return _contenidoService.obtenerContenidoPorCategoria(categoria);
+        }
+
+      case 'Tipo de Material':
+      // Si la búsqueda es por material, solo nos importa el Dropdown de material.
+        final material = materialSeleccionado;
+        if (material == null || material.isEmpty) {
+          // Mismo caso que categoría.
+          print('Cargando todo (ningún material seleccionado)...');
+          return _contenidoService.obtenerContenidoEducativo();
+        } else {
+          // Si hay un material seleccionado, lo usamos para buscar.
+          print('Buscando por tipo de material: $material');
+          return _contenidoService.obtenerContenidoPorTipoMaterial(material);
+        }
+
+      default:
+      // Caso por defecto: si algo sale mal, simplemente carga todo.
+        print('Caso por defecto: cargando todo el contenido...');
+        return _contenidoService.obtenerContenidoEducativo();
     }
   }
 
@@ -120,101 +166,152 @@ class _ContenidoUsuarioScreenState extends State<ContenidoUsuarioScreen> {
     );
   }
 
+  // Función auxiliar solo para el TextField y su botón
+  Widget _buildTextFieldBusqueda() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _busquedaController,
+            decoration: InputDecoration(
+              labelText: 'Escriba un valor.',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(Icons.clear),
+                onPressed: () {
+                  _busquedaController.clear();
+                  setState(() {
+                    _contenidosFuture = _cargarContenido();
+                  });
+                },
+              ),
+            ),
+            onSubmitted: (_) {
+              setState(() {
+                _contenidosFuture = _cargarContenido();
+              });
+            },
+          ),
+        ),
+        SizedBox(width: 12),
+        ElevatedButton.icon(
+          icon: Icon(Icons.search),
+          label: Text('Buscar'),
+          onPressed: () {
+            setState(() {
+              _contenidosFuture = _cargarContenido();
+            });
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  // Esta función construye la UI de búsqueda dinámicamente
+  Widget _buildSearchUI() {
+    switch (_tipoBusquedaSeleccionada) {
+      case 'Término (título, desc., etiqueta)':
+      // Muestra el TextField para búsqueda por término
+        return _buildTextFieldBusqueda(); // Usamos una función auxiliar
+
+      case 'Categoría':
+      // Muestra el Dropdown de Categorías
+        return DropdownButtonFormField<String>(
+          value: categoriaSeleccionada,
+          hint: Text('Seleccione una categoría'),
+          decoration: InputDecoration(
+            labelText: 'Categoría',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+          ),
+          items: opcionesCategoria.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            setState(() {
+              categoriaSeleccionada = newValue;
+              // Opcional: puedes disparar la búsqueda aquí mismo
+              _contenidosFuture = _cargarContenido();
+            });
+          },
+        );
+
+      case 'Tipo de Material':
+      // Muestra el Dropdown de Tipos de Material
+        return DropdownButtonFormField<String>(
+          value: materialSeleccionado,
+          hint: Text('Seleccione un material'),
+          decoration: InputDecoration(
+            labelText: 'Tipo de Material',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+          ),
+          items: opcionesMaterial.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            setState(() {
+              materialSeleccionado = newValue;
+              // Opcional: puedes disparar la búsqueda aquí mismo
+              _contenidosFuture = _cargarContenido();
+            });
+          },
+        );
+
+      default:
+      // Muestra un widget vacío o un placeholder si no hay nada seleccionado
+        return SizedBox.shrink();
+    }
+  }
+
+
   Widget _buildBarraDeBusqueda() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 800),
-        child: Container(
+    return Container(
           padding: EdgeInsets.all(16.0),
           color: Colors.white,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-               DropdownButtonFormField<TipoBusqueda>(
-                  isExpanded: true,
-                  value: _tipoBusquedaSeleccionada,
-                  decoration: InputDecoration(
-                    labelText: 'Buscar por:',
-                    hintText: 'Seleccione alguna de las opciones para hacer la búsqueda',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12.0),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: TipoBusqueda.porTermino,
-                      child: Text('Término (título, desc., etiqueta)'),
-                    ),
-                    DropdownMenuItem(
-                      value: TipoBusqueda.porCategoria,
-                      child: Text('Categoría'),
-                    ),
-                    DropdownMenuItem(
-                      value: TipoBusqueda.porTipoMaterial,
-                      child: Text('Tipo de material'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _tipoBusquedaSeleccionada = value;
-                      });
-                    }
-                  },
+              DropdownButtonFormField<String>(
+                value: _tipoBusquedaSeleccionada,
+                decoration: InputDecoration(
+                  labelText: 'Buscar por',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
                 ),
+                items: _opcionesTipoBusqueda.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _tipoBusquedaSeleccionada = newValue;
+                    categoriaSeleccionada = null;
+                    materialSeleccionado = null;
+                    _busquedaController.clear();
+                    _contenidosFuture = _cargarContenido();
+                  });
+                },
+              ),
 
               SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _busquedaController,
-                      decoration: InputDecoration(
-                        labelText: 'Escriba un valor.',
-                        hintText: 'Ingrese un dato para realizar la búsqueda con base a ello',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.clear),
-                          onPressed: () {
-                            _busquedaController.clear();
-                            setState(() {
-                              _contenidosFuture = _cargarContenido();
-                            });
-                          },
-                        ),
-                      ),
-                      onSubmitted: (_) {
-                        setState(() {
-                          _contenidosFuture = _cargarContenido();
-                        });
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.search),
-                    label: Text('Buscar'),
-                    onPressed: (){
-                      setState(() {
-                        _contenidosFuture = _cargarContenido();
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                        vertical: 16, horizontal: 20),
-                    ),
-                  ),
-                ]
-              ),
+              _buildSearchUI(),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 
   Widget _buildContenidoCard(ContenidoEducativo contenido) {

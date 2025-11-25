@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +8,7 @@ import 'dart:typed_data';
 
 
 // Asegúrate de que las rutas de importación sean correctas para tu proyecto
+import '../../models/cloudinary_image.dart';
 import '../../models/contenido_educativo.dart';
 import '../../widgets/imagen_red_widget.dart';
 import '../../services/contenido_edu_service.dart';
@@ -176,41 +179,116 @@ class _GestionarContenidoScreenState extends State<GestionarContenidoScreen> {
               }
             }
             Future<void> _guardarCambios() async {
+              // Declarar fuera del try/catch
+              List<CloudinaryImage> nuevasImagenesCloudinary = [];
+
               setStateDialog(() { _estaGuardando = true; });
 
               final puntosClaveList = _puntosClaveController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
               final etiquetasList = _etiquetasController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
+              // -----------------------------------------------------------
+              // 1. LÓGICA CLAVE DE SUSTITUCIÓN TOTAL
+              // -----------------------------------------------------------
+              if (_nuevasImagenes.isNotEmpty) {
+                // 🚨 CORRECCIÓN: Si se suben nuevas imágenes, forzamos la eliminación de todas las existentes.
+                for (var img in contenidoAEditar.imagenes) {
+                  // Usamos el getter correcto (asumimos public_id, no publicId)
+                  _imagenesAEliminar.add(img.public_id);
+                }
+
+                // 2. SUBIDA DE IMÁGENES NUEVAS A CLOUDINARY
+                try {
+                  final uploadPromises = _nuevasImagenes.map((imagen) =>ContenidoEduService.subirImagen(imagen)).toList();
+                  nuevasImagenesCloudinary = await Future.wait(uploadPromises);
+
+                } catch (e) {
+                  // Si la subida falla, detenemos el proceso
+                  setStateDialog(() { _estaGuardando = false; });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al subir nuevas imágenes a Cloudinary: $e'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+              }
+
+              // -----------------------------------------------------------
+              // 3. PREPARACIÓN FINAL DE DATOS PARA EL BACKEND
+              // -----------------------------------------------------------
+
+              // a) Imágenes a Retener (Las que no están en _imagenesAEliminar)
+              // Nota: Si se forzó la sustitución, esta lista estará vacía.
+              List<Map<String, dynamic>> imagenesRetenidas = contenidoAEditar.imagenes
+                  .where((img) => !_imagenesAEliminar.contains(img.public_id))
+                  .map((img) => {
+                'ruta': img.ruta,
+                'public_id': img.public_id,
+                'pie_de_imagen': img.pieDeImagen,
+                'es_principal': img.esPrincipal,
+              })
+                  .toList();
+
+              // Array final de imágenes (solo para la lógica de imagen principal)
+              List<Map<String, dynamic>> imagenesFinal = [
+                ...imagenesRetenidas,
+                ...nuevasImagenesCloudinary.map((img) => img.toJson()),
+              ];
+
+              // b) Definir la URL principal
+              String? rutaImagenPrincipal;
+
+              if (_nuevasImagenes.isNotEmpty && nuevasImagenesCloudinary.isNotEmpty) {
+                // Si hubo una sustitución (nuevas imágenes), la principal es la primera nueva.
+                rutaImagenPrincipal = nuevasImagenesCloudinary.first.ruta;
+              } else if (_imagenPrincipalExistente != null && imagenesRetenidas.isNotEmpty) {
+                // Si NO hubo sustitución, pero se seleccionó una principal entre las retenidas.
+                rutaImagenPrincipal = contenidoAEditar.imagenes[_imagenPrincipalExistente!].ruta;
+              } else if (imagenesFinal.isNotEmpty) {
+                // Caso de fallback: la primera imagen de la lista.
+                rutaImagenPrincipal = imagenesFinal.first['ruta'] as String?;
+              }
+
+              // -----------------------------------------------------------
+              // 4. LLAMADA AL SERVICIO
+              // -----------------------------------------------------------
               try {
                 final response = await _servicio.actualizarContenidoEducativo(
-                  id: contenidoAEditar.id,
-                  titulo: _tituloController.text,
-                  descripcion: _descripcionController.text,
-                  contenido: _contenidoController.text,
-                  categoria: catSelect,
-                  tipoMaterial: materialSelect,
-                  puntosClave: puntosClaveList,
-                  etiquetas: etiquetasList,
-                  nuevasImagenes: _nuevasImagenes,
-                  idsImagenesAEliminar: _imagenesAEliminar.isNotEmpty ? _imagenesAEliminar.toList() : null,
-                  imgPrincipal: _imagenPrincipalExistente,
-                );
+                    id: contenidoAEditar.id,
+                    titulo: _tituloController.text,
+                    descripcion: _descripcionController.text,
+                    contenido: _contenidoController.text,
+                    categoria: catSelect,
+                    tipoMaterial: materialSelect,
+                    puntosClave: puntosClaveList,
+                    etiquetas: etiquetasList,
 
-                if (response['statusCode'] == 200) {
-                  Navigator.of(dialogContext).pop();
-                  _recargarContenidos();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Contenido actualizado con éxito'), backgroundColor: Colors.green),
-                  );
-                } else {
-                  throw Exception(response['message'] ?? 'Respuesta inesperada del servidor');
-                }
+                    // IMÁGENES A AÑADIR (JSON String de las URLs/IDs de Cloudinary)
+                    imagenesAnadidasPreSubidas: nuevasImagenesCloudinary.isNotEmpty
+                ? json.encode(nuevasImagenesCloudinary.map((img) => img.toJson()).toList())
+                  : null,
+
+              // IDs A ELIMINAR (El backend elimina de Cloudinary y la BD)
+              idsImagenesAEliminar: _imagenesAEliminar.isNotEmpty ? _imagenesAEliminar.toList() : null,
+
+              // RUTA PRINCIPAL
+              imgPrincipalRuta: rutaImagenPrincipal,
+              );
+
+              if (response['statusCode'] == 200) {
+              Navigator.of(dialogContext).pop();
+              _recargarContenidos();
+              ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Contenido actualizado con éxito'), backgroundColor: Colors.green),
+              );
+              } else {
+              throw Exception(response['mensaje'] ?? 'Respuesta inesperada del servidor');
+              }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error al actualizar: $e'), backgroundColor: Colors.red),
-                );
+              ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error al actualizar: ${e.toString()}'), backgroundColor: Colors.red),
+              );
               } finally {
-                setStateDialog(() { _estaGuardando = false; });
+              setStateDialog(() { _estaGuardando = false; });
               }
             }
 

@@ -1,10 +1,12 @@
 class ImagenContenido {
   final String ruta;
+  final String public_id;
   final String pieDeImagen;
   final bool esPrincipal;
 
   ImagenContenido({
     required this.ruta,
+    required this.public_id,
     required this.pieDeImagen,
     required this.esPrincipal,
   });
@@ -12,6 +14,7 @@ class ImagenContenido {
   factory ImagenContenido.fromJson(Map<String, dynamic> json) {
     return ImagenContenido(
       ruta: json['ruta'] ?? '',
+      public_id: json['public_id'] ?? '',
       pieDeImagen: json['pie_de_imagen'] ?? '',
       esPrincipal: json['es_principal'] ?? false,
     );
@@ -79,7 +82,7 @@ class ContenidoEducativo {
   String? get imagenPrincipal {
     final principal = imagenes.firstWhere(
       (img) => img.esPrincipal == true,
-      orElse: () => imagenes.isNotEmpty ? imagenes.first : ImagenContenido(ruta: '', pieDeImagen: '', esPrincipal: false),
+      orElse: () => imagenes.isNotEmpty ? imagenes.first : ImagenContenido(ruta: '', public_id: '', pieDeImagen: '', esPrincipal: false),
     );
     return principal.ruta.isNotEmpty ? principal.ruta : null;
   }
