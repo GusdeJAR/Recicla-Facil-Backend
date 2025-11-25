@@ -1,3 +1,6 @@
+import 'package:characters/characters.dart';
+  // Normaliza texto para comparar categorías (sin acentos, espacios, mayúsculas)
+  
 // En un nuevo archivo: screens/vista_admin_quejas.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -11,13 +14,14 @@ class VistaAdminQuejas extends StatefulWidget {
 }
 
 class _VistaAdminQuejasState extends State<VistaAdminQuejas> {
+  int _tabIndex = 0;
   late Future<List<Queja>> _quejasFuture;
   final QuejaService _quejaService = QuejaService();
   bool _isActionLoading = false;
   String? _categoriaFiltro;
   final List<String> _categoriasDisponibles = [
-    // La primera opción siempre será para ver todas las quejas.
-    'Todas las pendientes',
+     // La primera opción siempre será para ver todas las quejas.
+     'Todas',
     // El resto de categorías que usas en tu formulario.
     'Sugerencia / Nueva funcionalidad',
     'Duda',
@@ -33,15 +37,42 @@ class _VistaAdminQuejasState extends State<VistaAdminQuejas> {
     super.initState();
     _recargarQuejas();
   }
+  String _normalize(String input) {
+    final withNoSpaces = input.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+    final withNoAccents = withNoSpaces
+      .replaceAll('á', 'a')
+      .replaceAll('é', 'e')
+      .replaceAll('í', 'i')
+      .replaceAll('ó', 'o')
+      .replaceAll('ú', 'u')
+      .replaceAll('ü', 'u')
+      .replaceAll('ñ', 'n');
+    return withNoAccents;
+  }
 
   void _recargarQuejas() {
     setState(() {
-      // Si no hay filtro o el filtro es "Todas", llamamos al método original.
-      if (_categoriaFiltro == null || _categoriaFiltro == 'Todas las pendientes') {
-        _quejasFuture = _quejaService.obtenerQuejasPendientes();
+      final estadoBuscado = _tabIndex == 0 ? 'Pendiente' : 'Atendida';
+      if (_categoriaFiltro == null || _categoriaFiltro == 'Todas') {
+        // Obtener todas las quejas del estado seleccionado
+        if (_tabIndex == 0) {
+          _quejasFuture = _quejaService.obtenerQuejasPendientes();
+        } else {
+          _quejasFuture = _quejaService.obtenerQuejasAtendidas();
+        }
       } else {
-        // Si hay una categoría seleccionada, llamamos al nuevo método.
-        _quejasFuture = _quejaService.obtenerQuejasPorCategoria(_categoriaFiltro!);
+        // Obtener todas las quejas del estado y filtrar por categoría en frontend
+        Future<List<Queja>> futureQuejas;
+        if (_tabIndex == 0) {
+          futureQuejas = _quejaService.obtenerQuejasPendientes();
+        } else {
+          futureQuejas = _quejaService.obtenerQuejasAtendidas();
+        }
+        _quejasFuture = futureQuejas.then((todas) {
+          return todas.where((q) =>
+            _normalize(q.categoria) == _normalize(_categoriaFiltro!)
+          ).toList();
+        });
       }
     });
   }
@@ -292,11 +323,39 @@ class _VistaAdminQuejasState extends State<VistaAdminQuejas> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Padding(
+          padding: EdgeInsets.only(top: 16.0),
+          child: ToggleButtons(
+            borderRadius: BorderRadius.circular(8),
+            isSelected: [_tabIndex == 0, _tabIndex == 1],
+            onPressed: (int index) {
+              setState(() {
+                _tabIndex = index;
+                if (_tabIndex == 0) {
+                  _categoriaFiltro = 'Todas';
+                } else {
+                  _categoriaFiltro = null; // Para mostrar todas atendidas
+                }
+                _recargarQuejas();
+              });
+            },
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Pendientes'),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Atendidas'),
+              ),
+            ],
+          ),
+        ),
         // --- WIDGET DEL FILTRO DE CATEGORÍAS ---
         Padding(
           padding:  EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
           child: DropdownButtonFormField<String>(
-            value: _categoriaFiltro ?? 'Todas las pendientes',
+            value: _categoriaFiltro ?? 'Todas',
             hint:  Text("Filtrar por categoría"),
             decoration:  InputDecoration(
               labelText: 'Filtro de categorías',
@@ -367,42 +426,47 @@ class _VistaAdminQuejasState extends State<VistaAdminQuejas> {
 
                   // 4. Estado Exitoso (Hay datos para mostrar)
                   final quejas = snapshot.data!;
-                  return ListView.builder(
-                    padding:  EdgeInsets.only(top: 8.0),
-                    itemCount: quejas.length,
-                    itemBuilder: (ctx, index) {
-                      final queja = quejas[index];
-                      return Card(
-                        margin:  EdgeInsets.symmetric(horizontal: 15, vertical: 6),
-                        elevation: 3,
-                        child: ListTile(
-                          title: Text(
-                            '${queja.categoria} - (${queja.correo})',
-                            style:  TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    return ListView.builder(
+                      padding: EdgeInsets.only(top: 8.0),
+                      itemCount: quejas.length,
+                      itemBuilder: (ctx, index) {
+                        final queja = quejas[index];
+                        // Filtrar por estado según el tab seleccionado
+                        if (_tabIndex == 0 && queja.estado != 'Pendiente') return SizedBox.shrink();
+                        if (_tabIndex == 1 && queja.estado != 'Atendida') return SizedBox.shrink();
+                        return Card(
+                          margin: EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+                          elevation: 3,
+                          child: ListTile(
+                            title: Text(
+                              '${queja.categoria} - (${queja.correo})',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                            subtitle: Padding(
+                              padding: EdgeInsets.only(top: 4.0),
+                              child: Text(queja.mensaje, style: TextStyle(color: Colors.grey[700])),
+                            ),
+                            trailing: _tabIndex == 0
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.check_circle_outline, color: Colors.green),
+                                        onPressed: () => _atenderQueja(queja),
+                                        tooltip: 'Atender Queja',
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: Colors.red),
+                                        onPressed: () => _eliminarQueja(queja.id, queja.correo),
+                                        tooltip: 'Eliminar Queja',
+                                      ),
+                                    ],
+                                  )
+                                : null,
                           ),
-                          subtitle: Padding(
-                            padding:  EdgeInsets.only(top: 4.0),
-                            child: Text(queja.mensaje, style: TextStyle(color: Colors.grey[700])),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon:  Icon(Icons.check_circle_outline, color: Colors.green),
-                                onPressed: () => _atenderQueja(queja),
-                                tooltip: 'Atender Queja',
-                              ),
-                              IconButton(
-                                icon:  Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => _eliminarQueja(queja.id, queja.correo),
-                                tooltip: 'Eliminar Queja',
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
+                        );
+                      },
+                    );
                 },
               ),
 

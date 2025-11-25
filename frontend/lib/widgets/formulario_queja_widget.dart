@@ -110,6 +110,11 @@ import '../services/queja_service.dart';
       @override
       Widget build(BuildContext context) {
         final screenSize = MediaQuery.of(context).size;
+        final authProvider = Provider.of<AuthProvider>(context);
+        // Si es admin, no mostrar nada
+        if (authProvider.isAdmin) {
+          return SizedBox.shrink();
+        }
 
         return Scaffold(
           // Añadido para evitar que el teclado empuje y deforme el layout

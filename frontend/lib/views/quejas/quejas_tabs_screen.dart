@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/formulario_queja_widget.dart';
 import 'gestionquejas_screen.dart';
+import 'vistadminquejas_screen.dart';
 
 class QuejasTabsScreen extends StatefulWidget {
   const QuejasTabsScreen({super.key});
@@ -32,12 +33,12 @@ class _QuejasTabsScreenState extends State<QuejasTabsScreen> {
 
     return Scaffold(
 
-      body: IndexedStack(
+      body: authProvider.isAdmin ? VistaAdminQuejas() : IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
 
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: authProvider.isAdmin ? null : BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.edit_document),

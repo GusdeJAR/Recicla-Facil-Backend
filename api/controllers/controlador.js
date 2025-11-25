@@ -295,6 +295,25 @@ exports.obtenerQuejasPendientes = async (req, res) => {
     }
 };
 
+// =========================================================================
+// @desc    Obtener todas las quejas atendidas (para Administradores)
+// @route   GET /api/quejas/atendidas
+// @access  Privado (solo para Administradores)
+// =========================================================================
+exports.obtenerQuejasAtendidas = async (req, res) => {
+    try {
+        // Buscamos todas las quejas con estado 'Atendida'
+        const quejasAtendidas = await modelos.Queja.find({ estado: 'Atendida' })
+            .sort({ fechaCreacion: 1 }); // Ordenamos de la más antigua a la más nueva
+
+        res.status(200).json(quejasAtendidas);
+
+    } catch (error) {
+        console.error("Error al obtener quejas atendidas:", error);
+        res.status(500).json({ mensaje: 'Error interno del servidor.' });
+    }
+};
+
 exports.obtenerQuejasPorCategoria = async (req, res) => {
     try {
       

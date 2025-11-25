@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/queja.dart';
 
 class QuejaService {
+    
   String apiBaseUrl = 'https://recicla-facil-backend.vercel.app';
 
 
@@ -165,4 +166,29 @@ class QuejaService {
       throw Exception('Ocurrió un error inesperado al eliminar la queja: $e');
     }
   }
+
+  // ===================================================================
+    // 7. OBTENER QUEJAS ATENDIDAS
+    // ===================================================================
+    Future<List<Queja>> obtenerQuejasAtendidas() async {
+      final url = Uri.parse('$apiBaseUrl/api/quejas/atendidas');
+      debugPrint('QuejaService - Obteniendo quejas atendidas en: $url');
+
+      try {
+        final response = await http.get(url, headers: {
+          'Content-Type': 'application/json',
+        }).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          return quejaFromJson(response.body);
+        } else {
+          throw Exception('Error al cargar quejas atendidas: ${response.body}');
+        }
+      } on TimeoutException {
+        throw Exception('Tiempo de espera agotado. Revisa tu conexión.');
+      } catch (e) {
+        throw Exception('Ocurrió un error inesperado: $e');
+      }
+    }
+  
 }
