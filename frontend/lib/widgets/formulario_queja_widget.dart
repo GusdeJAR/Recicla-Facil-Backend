@@ -82,8 +82,6 @@ import '../services/queja_service.dart';
                 backgroundColor: Colors.green,
               ),
             );
-            // Regresar a la pantalla anterior
-            Navigator.pushReplacementNamed(context, '/home');
           } else {
             // Mostrar cualquier otro mensaje de error que venga del backend
             final errorMessage = response['mensaje'] ?? 'Error desconocido al enviar el mensaje.';

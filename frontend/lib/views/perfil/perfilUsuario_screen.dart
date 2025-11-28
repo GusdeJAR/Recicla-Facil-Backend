@@ -700,7 +700,7 @@ class _VistaConsultarUsuarioState extends State<VistaConsultarUsuario> {
     // Variable de estado para el Switch
     bool esAdminActual = esAdminInicial;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    bool _passwordVisible = false; // <-- CAMBIO: Variable para el estado de visibilidad de la contraseña.
+    bool _passwordVisible = false;
     showDialog(
       context: context,
       // Usamos barrierDismissible: false para obligar al usuario a usar los botones
@@ -768,17 +768,6 @@ class _VistaConsultarUsuarioState extends State<VistaConsultarUsuario> {
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _passwordVisible ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    _passwordVisible = !_passwordVisible;
-                                  });
-                                },
-                              ),
                             ),
                           ),
                           SizedBox(height: 20),

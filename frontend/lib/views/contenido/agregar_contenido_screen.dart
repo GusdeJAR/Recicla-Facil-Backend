@@ -309,15 +309,15 @@ class _AgregarContenidoScreenState extends State<AgregarContenidoScreen> {
                     ],
                   ),
                   SizedBox(height: 15),
-                  _buildTextFormField(_puntosClaveController, 'Puntos clave (separados por coma)', 'Indique los puntos clave del registro'),
+                  _buildTextFormField(_puntosClaveController, 'Puntos clave (separados por coma)', 'Indique los puntos clave del registro, siendo subtemas o características.'),
                   SizedBox(height: 15),
-                  _buildTextFormField(_etiquetasController, 'Etiquetas (separadas por coma)','Indique las etiquetas referentes al registro'),
+                  _buildTextFormField(_etiquetasController, 'Etiquetas (separadas por coma)','Indique las etiquetas referentes al registro, siendo conceptos para su búsqueda.'),
                   SizedBox(height: 20),
 
                   OutlinedButton.icon(
                     onPressed: _seleccionarImagenes,
                     icon: Icon(Icons.add_photo_alternate_outlined),
-                    label: Text('Seleccionar Imágenes'),
+                    label: Text('Seleccionar imágenes'),
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.green,
