@@ -219,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(height: 20),
 
                       // Botón para descargar Aplicacion solo en web
-                      if (identical(0, 0.0))
+                     if (identical(0, 0.0))
                         // kIsWeb
                         SizedBox(
                           width: double.infinity,
@@ -241,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(width: 20),
                           TextButton(
                             onPressed: () {
-                              Navigator.pushReplacementNamed(context, '/register');
+                              Navigator.pushNamed(context, '/forgot-password');
                             },
                             child: Text(
                               'Olvidé mi contraseña',
