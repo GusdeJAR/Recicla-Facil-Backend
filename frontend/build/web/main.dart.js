@@ -101522,7 +101522,7 @@ case 6:case 1:return A.D(q,r)
 case 2:return A.C(o.at(-1),r)}})
 return A.E($async$zZ,r)},
 ac4(){var s=document.createElement("a")
-s.href="https://drive.google.com/uc?export=download&id=1VulKqV6S1_7-xEMUXk26T_EJ8DpAS3IU"
+s.href="https://drive.google.com/uc?export=download&id=1x3_n3QwyjHg_zFsBn-tFpoYr2Kg6Hckb"
 s.setAttribute("download","ReciclaFacil.apk")
 s.click()},
 G(a){var s,r,q,p,o=this,n=null,m=A.tj(0,A.w7(u.y,B.cq)),l=A.tj(0,A.by(n,n,B.m,A.ad(B.d.az(76.5),B.k.q()>>>16&255,B.k.q()>>>8&255,B.k.q()&255),n,n,n,n,n,n,n,n,n)),k=A.S(n,70,n),j=A.S(A.w7("assets/images/logos/logo_completo.png",B.cR),104,393),i=A.S(n,16,n),h=A.p("Inicio de sesi\xf3n",n,n,n,A.ae(n,n,B.f,n,n,n,n,n,n,n,n,18,n,n,B.hW,n,n,!0,n,n,n,n,n,n,n,n),n,n),g=A.S(n,50,n),f=B.d.az(229.5),e=A.ad(f,B.f.q()>>>16&255,B.f.q()>>>8&255,B.f.q()&255),d=A.b4(8)

@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _descargarAplicacion() {
     // URL directa para descarga del APK desde Google Drive
     final apkUrl =
-          'https://drive.google.com/uc?export=download&id=1VulKqV6S1_7-xEMUXk26T_EJ8DpAS3IU';
+          'https://drive.google.com/uc?export=download&id=1x3_n3QwyjHg_zFsBn-tFpoYr2Kg6Hckb';
 
     // Crear un elemento anchor temporal para forzar la descarga
     final anchor = html.AnchorElement(href: apkUrl)
